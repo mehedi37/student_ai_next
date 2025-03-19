@@ -1,6 +1,31 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# Student AI Bot
+
+A Next.js frontend for the Student AI Assistant project - an intelligent learning companion designed to help students learn through natural language conversations.
+
+## Features
+
+- Natural language conversations with AI
+- Document Q&A capabilities
+- YouTube video content analysis
+- Voice input support
+- Session management
+- User authentication
 
 ## Getting Started
+
+### Prerequisites
+
+- Node.js 18+
+- Backend API running (see backend setup instructions)
+
+### Environment Setup
+
+Create a `.env` file in the root directory with:
+
+```bash
+NEXT_PUBLIC_API_URL=<your_backend_api_url>
+NEXT_PUBLIC_API_KEY=<your_api_key>
+```
 
 First, run the development server:
 
