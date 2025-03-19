@@ -8,7 +8,7 @@ class WebSocketManager {
     this.eventListeners = {};
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
-    this.reconnectDelay = 1000; // Start with 1s delay
+    this.reconnectDelay = 1000;
   }
 
   connect() {
@@ -70,6 +70,11 @@ class WebSocketManager {
       const data = JSON.parse(event.data);
       const eventType = data.type || 'message';
 
+      // Log incoming messages (can be removed in production)
+      if (eventType === 'chat_response') {
+        console.log('Received chat response:', data);
+      }
+
       // Dispatch event to listeners
       if (this.eventListeners[eventType]) {
         this.eventListeners[eventType].forEach(callback => callback(data));
@@ -107,9 +112,16 @@ class WebSocketManager {
 
     return new Promise((resolve, reject) => {
       try {
-        this.socket.send(JSON.stringify(data));
+        // Add timestamp to all messages
+        const messageWithTimestamp = {
+          ...data,
+          timestamp: new Date().toISOString()
+        };
+
+        this.socket.send(JSON.stringify(messageWithTimestamp));
         resolve();
       } catch (error) {
+        console.error('Error sending message:', error);
         reject(error);
       }
     });

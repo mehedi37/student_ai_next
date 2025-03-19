@@ -12,6 +12,7 @@ export default function ChatInterface({ user, session, wsClientId }) {
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState(session?.session_id || null);
   const messagesEndRef = useRef(null);
+  const messagesContainerRef = useRef(null);
 
   // Expose method to append user message (used by speech recognition)
   useEffect(() => {
@@ -115,13 +116,29 @@ export default function ChatInterface({ user, session, wsClientId }) {
     setIsLoading(true);
 
     try {
-      const response = await api.chat.send({
-        utter: messageText,
-        session_id: sessionId
-      });
+      // Use WebSocket for sending if available
+      if (wsClientId && websocketManager.isConnected) {
+        // Generate a unique message ID for tracking this conversation
+        const messageId = uuidv4();
 
-      // If not using WebSockets, add bot response
-      if (!wsClientId) {
+        // Send message through WebSocket
+        await websocketManager.send({
+          type: 'chat_message',
+          message_id: messageId,
+          content: messageText,
+          session_id: sessionId,
+          user_id: user?.id
+        });
+
+        // WebSocket responses will be handled by the listener set up in useEffect
+      } else {
+        // Fall back to HTTP request
+        const response = await api.chat.send({
+          utter: messageText,
+          session_id: sessionId
+        });
+
+        // Add bot response to UI
         setMessages(prev => [...prev, {
           id: uuidv4(),
           content: response.response,
@@ -129,11 +146,11 @@ export default function ChatInterface({ user, session, wsClientId }) {
           timestamp: new Date().toISOString(),
           metadata: response.metadata
         }]);
-      }
 
-      // Update session ID if needed
-      if (response.session_id && !sessionId) {
-        setSessionId(response.session_id);
+        // Update session ID if needed
+        if (response.session_id && !sessionId) {
+          setSessionId(response.session_id);
+        }
       }
     } catch (error) {
       console.error('Error sending message:', error);
@@ -154,8 +171,11 @@ export default function ChatInterface({ user, session, wsClientId }) {
   };
 
   return (
-    <div className="flex flex-col h-full max-w-4xl mx-auto">
-      <div className="flex-1 overflow-y-auto space-y-4 pb-4">
+    <div className="flex flex-col h-[calc(100vh-200px)] max-w-4xl mx-auto">
+      <div
+        ref={messagesContainerRef}
+        className="flex-1 overflow-y-auto space-y-4 pb-4 px-2"
+      >
         {messages.length === 0 ? (
           <div className="text-center py-10">
             <h2 className="text-2xl font-bold text-gray-500">Welcome to Student AI Bot</h2>
@@ -170,10 +190,21 @@ export default function ChatInterface({ user, session, wsClientId }) {
             />
           ))
         )}
+
+        {/* Loading indicator */}
+        {isLoading && (
+          <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-lg shadow-sm">
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: "600ms" }}></div>
+            <span className="text-sm text-gray-500 ml-2">Thinking...</span>
+          </div>
+        )}
+
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="flex items-center border-t border-gray-200 p-4 bg-white rounded-lg">
+      <form onSubmit={handleSubmit} className="flex items-center border-t border-gray-200 p-4 bg-white rounded-lg mt-2">
         <input
           type="text"
           value={input}

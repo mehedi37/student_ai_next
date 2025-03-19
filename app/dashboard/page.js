@@ -29,6 +29,17 @@ export default function Dashboard() {
         .then(() => {
           setWsConnected(true);
           console.log('WebSocket connected with client ID:', websocketManager.getClientId());
+
+          // Add listener for connection status changes
+          const unsubscribe = websocketManager.on('connection_status', (data) => {
+            if (data.status === 'connected') {
+              setWsConnected(true);
+            } else if (data.status === 'disconnected') {
+              setWsConnected(false);
+            }
+          });
+
+          return () => unsubscribe();
         })
         .catch(err => {
           console.error('Failed to connect to WebSocket:', err);
