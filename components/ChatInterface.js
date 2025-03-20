@@ -171,7 +171,7 @@ export default function ChatInterface({ user, session, wsClientId }) {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-200px)] max-w-4xl mx-auto">
+    <div className="flex flex-col h-[calc(100vh-270px)] max-w-4xl mx-auto">
       <div
         ref={messagesContainerRef}
         className="flex-1 overflow-y-auto space-y-4 pb-4 px-2"
