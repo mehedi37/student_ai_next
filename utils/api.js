@@ -8,9 +8,13 @@ async function fetchAPI(endpoint, options = {}) {
 
   // Default headers
   const headers = {
-    'Content-Type': 'application/json',
     ...options.headers,
   };
+
+  // Add Content-Type only if not FormData (browser will set it for FormData)
+  if (!(options.body instanceof FormData)) {
+    headers['Content-Type'] = 'application/json';
+  }
 
   // Add auth token if available
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
@@ -21,6 +25,7 @@ async function fetchAPI(endpoint, options = {}) {
   const config = {
     ...options,
     headers,
+    credentials: 'include', // Include cookies in all requests
   };
 
   try {
@@ -28,8 +33,11 @@ async function fetchAPI(endpoint, options = {}) {
 
     // If response is not ok, throw error
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(errorData.message || 'API request failed');
+      const errorData = await response.json().catch(() => ({
+        status: response.status,
+        message: response.statusText
+      }));
+      throw new Error(errorData.detail || errorData.message || `API request failed with status ${response.status}`);
     }
 
     // Return JSON data or empty object if no content
@@ -71,33 +79,37 @@ export const api = {
 
   // Upload endpoints
   uploads: {
-    file: (file, clientId) => {
+    file: (file, clientId = null) => {
+      if (!clientId) {
+        console.warn('No client_id provided for file upload, this may cause issues');
+      }
+
       const formData = new FormData();
       formData.append('file', file);
 
-      const url = clientId ?
-        `/uploads/file?client_id=${encodeURIComponent(clientId)}` :
-        '/uploads/file';
+      // Ensure client_id is always included in the URL
+      const endpoint = `/uploads/file${clientId ? `?client_id=${encodeURIComponent(clientId)}` : ''}`;
 
-      return fetchAPI(url, {
+      return fetchAPI(endpoint, {
         method: 'POST',
-        headers: {
-          // Remove Content-Type to let the browser set it with boundary
-          'Content-Type': undefined,
-        },
         body: formData,
+        // Don't set Content-Type header for FormData, browser will set it with boundary
       });
     },
-    youtube: (url, clientId) => {
-      const endpoint = clientId ?
-        `/uploads/youtube?client_id=${encodeURIComponent(clientId)}` :
-        '/uploads/youtube';
+
+    youtube: (url, clientId = null) => {
+      if (!clientId) {
+        console.warn('No client_id provided for YouTube upload, this may cause issues');
+      }
+
+      const endpoint = `/uploads/youtube${clientId ? `?client_id=${encodeURIComponent(clientId)}` : ''}`;
 
       return fetchAPI(endpoint, {
         method: 'POST',
         body: JSON.stringify({ url }),
       });
     },
+
     status: (taskId) => fetchAPI(`/uploads/status/${taskId}`),
     documents: () => fetchAPI('/uploads/documents'),
     terminateTask: (taskId) => fetchAPI(`/uploads/task/${taskId}`, {

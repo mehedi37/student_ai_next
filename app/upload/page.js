@@ -18,6 +18,7 @@ export default function UploadPage() {
   const [error, setError] = useState('');
   const [wsConnected, setWsConnected] = useState(false);
   const [taskId, setTaskId] = useState(null);
+  const [processingStage, setProcessingStage] = useState('');
 
   // Redirect if not logged in
   useEffect(() => {
@@ -77,6 +78,26 @@ export default function UploadPage() {
     if (data.type === 'upload_progress' || data.task_id === taskId) {
       setProgress(data);
 
+      // Update processing stage based on status or explicit stage field
+      if (data.stage) {
+        setProcessingStage(data.stage);
+      } else if (data.status === 'processing') {
+        // Determine stage from metadata if available
+        if (data.metadata && data.metadata.stage) {
+          setProcessingStage(data.metadata.stage);
+        } else if (data.percentage < 20) {
+          setProcessingStage('initializing');
+        } else if (data.percentage < 40) {
+          setProcessingStage('extracting');
+        } else if (data.percentage < 90) {
+          setProcessingStage('embedding');
+        } else {
+          setProcessingStage('finalizing');
+        }
+      } else {
+        setProcessingStage(data.status);
+      }
+
       // If processing is complete, reset the form
       if (data.status === 'completed') {
         setTimeout(() => {
@@ -85,6 +106,7 @@ export default function UploadPage() {
           setUploading(false);
           setProgress(null);
           setTaskId(null);
+          setProcessingStage('');
         }, 3000);
       }
     }
@@ -107,13 +129,25 @@ export default function UploadPage() {
     setUploading(true);
 
     try {
-      const clientId = wsConnected ? websocketManager.getClientId() : null;
+      // Always get the client ID - even if not connected, the WebSocketManager has generated one
+      const clientId = websocketManager ? websocketManager.getClientId() : null;
+
+      if (!clientId) {
+        throw new Error('Unable to generate client ID for upload. Please refresh the page and try again.');
+      }
+
+      console.log('Using client ID for upload:', clientId);
+
       let response;
 
       if (uploadType === 'file') {
         if (!file) {
           throw new Error('Please select a file to upload');
         }
+
+        // Log for debugging
+        console.log('Uploading file:', file.name, 'with client ID:', clientId);
+
         response = await api.uploads.file(file, clientId);
       } else {
         if (!youtubeUrl.trim()) {
@@ -122,6 +156,7 @@ export default function UploadPage() {
         response = await api.uploads.youtube(youtubeUrl, clientId);
       }
 
+      console.log('Upload response:', response);
       setTaskId(response.task_id);
       setProgress({
         current: 0,
@@ -142,6 +177,7 @@ export default function UploadPage() {
         }, 2000);
       }
     } catch (err) {
+      console.error('Upload error:', err);
       setError(err.message || 'Upload failed. Please try again.');
       setUploading(false);
     }
@@ -162,6 +198,25 @@ export default function UploadPage() {
     } else {
       setUploading(false);
       setProgress(null);
+    }
+  };
+
+  const getStageDescription = (stage) => {
+    switch (stage) {
+      case 'initializing':
+        return 'Preparing your document for processing...';
+      case 'extracting':
+        return 'Extracting text content from your document...';
+      case 'embedding':
+        return 'Generating AI-readable embeddings for your content...';
+      case 'finalizing':
+        return 'Finalizing and saving your document...';
+      case 'completed':
+        return 'Processing complete! Your document is ready.';
+      case 'failed':
+        return 'Processing failed. Please try again.';
+      default:
+        return 'Processing your document...';
     }
   };
 
@@ -201,16 +256,40 @@ export default function UploadPage() {
                  progress.status === 'completed' ? 'Upload Complete!' :
                  'Upload Status'}
               </h3>
+
+              {/* Stage description */}
+              <p className="text-sm text-gray-600 mb-3">
+                {getStageDescription(processingStage)}
+              </p>
+
+              {/* Progress bar */}
               <div className="w-full bg-gray-200 rounded-full h-2.5">
                 <div
-                  className="bg-blue-600 h-2.5 rounded-full"
+                  className="bg-blue-600 h-2.5 rounded-full transition-all duration-300"
                   style={{ width: `${progress.percentage}%` }}
                 ></div>
               </div>
+
               <div className="flex justify-between mt-2 text-sm text-gray-600">
-                <span>{progress.status}</span>
+                <span>{processingStage || progress.status}</span>
                 <span>{progress.percentage}%</span>
               </div>
+
+              {/* Detailed embedding information if available */}
+              {processingStage === 'embedding' && progress.metadata && (
+                <div className="mt-3 p-3 bg-gray-50 rounded text-sm">
+                  <p className="font-medium">Embedding Progress:</p>
+                  {progress.metadata.chunks_embedded && (
+                    <p>Chunks embedded: {progress.metadata.chunks_embedded} of {progress.metadata.total_chunks || progress.total}</p>
+                  )}
+                  {progress.metadata.current_file && (
+                    <p>Current file: {progress.metadata.current_file}</p>
+                  )}
+                  {progress.metadata.remaining_files > 0 && (
+                    <p>Remaining files: {progress.metadata.remaining_files}</p>
+                  )}
+                </div>
+              )}
 
               {progress.status !== 'completed' && (
                 <button

@@ -3,43 +3,50 @@ import { v4 as uuidv4 } from 'uuid';
 class WebSocketManager {
   constructor() {
     this.socket = null;
-    this.clientId = null;
+    this.clientId = uuidv4(); // Generate a UUID on initialization
     this.isConnected = false;
     this.eventListeners = {};
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.reconnectDelay = 1000;
+    this.intentionalDisconnect = false;
+    this.autoReconnect = true;
   }
 
   connect() {
-    if (this.socket) {
-      return Promise.resolve(this.clientId);
-    }
-
-    this.clientId = uuidv4();
-    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const host = process.env.NEXT_PUBLIC_WS_URL ||
-      `${wsProtocol}//${window.location.host}/api/ws`;
-
     return new Promise((resolve, reject) => {
+      if (this.isConnected) {
+        resolve(this.clientId);
+        return;
+      }
+
+      // Ensure we have a client ID before connecting
+      if (!this.clientId) {
+        this.clientId = uuidv4();
+      }
+
+      const host = process.env.NEXT_PUBLIC_WS_URL || `wss://${window.location.hostname}`;
+
       try {
+        console.log(`Connecting to WebSocket with client ID: ${this.clientId}`);
         this.socket = new WebSocket(`${host}/client/${this.clientId}`);
 
         this.socket.onopen = () => {
           console.log('WebSocket connected');
           this.isConnected = true;
-          this.reconnectAttempts = 0;
-          this.reconnectDelay = 1000;
           resolve(this.clientId);
         };
 
-        this.socket.onclose = this.handleClose.bind(this);
+        this.socket.onmessage = (event) => {
+          this.handleMessage(event);
+        };
+
         this.socket.onerror = (error) => {
           console.error('WebSocket error:', error);
           reject(error);
         };
 
-        this.socket.onmessage = this.handleMessage.bind(this);
+        this.socket.onclose = this.handleClose.bind(this);
       } catch (error) {
         console.error('WebSocket connection error:', error);
         reject(error);
@@ -51,39 +58,40 @@ class WebSocketManager {
     console.log('WebSocket closed:', event);
     this.isConnected = false;
 
-    // Try to reconnect
-    if (this.reconnectAttempts < this.maxReconnectAttempts) {
-      this.reconnectAttempts++;
-      const delay = Math.min(this.reconnectDelay * this.reconnectAttempts, 10000);
-      console.log(`Attempting to reconnect in ${delay/1000}s...`);
-
+    // Attempt to reconnect after brief delay if not intentionally disconnected
+    if (!this.intentionalDisconnect && this.autoReconnect) {
       setTimeout(() => {
         this.connect().catch(err => {
-          console.error('Reconnect failed:', err);
+          console.error('Failed to reconnect WebSocket:', err);
         });
-      }, delay);
+      }, 3000);
     }
   }
 
   handleMessage(event) {
     try {
       const data = JSON.parse(event.data);
-      const eventType = data.type || 'message';
 
-      // Log incoming messages (can be removed in production)
-      if (eventType === 'chat_response') {
-        console.log('Received chat response:', data);
+      // Handle embedding progress updates specially
+      if (data.type === 'upload_progress') {
+        // Extract additional embedding information if available
+        if (data.stage === 'embedding' && data.metadata) {
+          data.embeddingDetails = {
+            chunksEmbedded: data.metadata.chunks_embedded || 0,
+            totalChunks: data.metadata.total_chunks || data.total || 0,
+            currentFile: data.metadata.current_file,
+            remainingFiles: data.metadata.remaining_files
+          };
+        }
       }
 
-      // Dispatch event to listeners
-      if (this.eventListeners[eventType]) {
-        this.eventListeners[eventType].forEach(callback => callback(data));
-      }
+      // Emit the event to all registered listeners
+      const listeners = this.eventListeners[data.type] || [];
+      listeners.forEach(callback => callback(data));
 
-      // Also dispatch to 'all' listeners
-      if (this.eventListeners['all']) {
-        this.eventListeners['all'].forEach(callback => callback(data));
-      }
+      // Also emit to wildcard listeners
+      const wildcardListeners = this.eventListeners['*'] || [];
+      wildcardListeners.forEach(callback => callback(data));
     } catch (error) {
       console.error('Error parsing WebSocket message:', error);
     }
