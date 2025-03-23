@@ -3,7 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   images: {
-    domains: ['localhost'],
+    domains: ['localhost', 'student-ai-uvkh.onrender.com', 'student-ai-next.vercel.app'],
   },
   eslint: {
     dirs: ['pages', 'components', 'lib', 'layouts', 'utils', 'app'],
