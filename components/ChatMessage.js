@@ -1,43 +1,75 @@
 'use client';
 
-import { useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
+import { marked } from 'marked';
+import DOMPurify from 'dompurify';
+import { User, Bot, X, Volume2 } from 'lucide-react';
 
 export default function ChatMessage({ message, isUser }) {
-  const [expanded, setExpanded] = useState(false);
+  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
+  const audioRef = useRef(null);
 
-  const hasMetadata = message.metadata && Object.keys(message.metadata).length > 0;
+  // Toggle audio playback - using basic browser speech synthesis
+  const toggleAudio = () => {
+    if (isAudioPlaying) {
+      window.speechSynthesis.cancel();
+      setIsAudioPlaying(false);
+    } else {
+      const utterance = new SpeechSynthesisUtterance(message.content);
+      utterance.onend = () => setIsAudioPlaying(false);
+      window.speechSynthesis.speak(utterance);
+      setIsAudioPlaying(true);
+    }
+  };
+
+  // Clean up any speech synthesis on unmount
+  useEffect(() => {
+    return () => {
+      window.speechSynthesis.cancel();
+    };
+  }, []);
+
+  // Parse markdown to HTML and sanitize it
+  const renderMarkdown = (content) => {
+    const html = marked(content);
+    const sanitizedHtml = DOMPurify.sanitize(html);
+    return { __html: sanitizedHtml };
+  };
 
   return (
-    <div className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-3xl rounded-lg px-4 py-2 ${
-        isUser
-          ? 'bg-blue-500 text-white'
-          : message.isError
-            ? 'bg-red-100 text-red-800'
-            : 'bg-gray-100 text-gray-800'
-      }`}>
-        <div className="whitespace-pre-wrap">{message.content}</div>
-
-        {hasMetadata && (
-          <div className="mt-2">
-            <button
-              onClick={() => setExpanded(!expanded)}
-              className="text-xs underline text-blue-400 hover:text-blue-600"
-            >
-              {expanded ? 'Hide details' : 'Show details'}
-            </button>
-
-            {expanded && (
-              <pre className="mt-1 text-xs bg-gray-800 text-gray-200 p-2 rounded overflow-x-auto">
-                {JSON.stringify(message.metadata, null, 2)}
-              </pre>
-            )}
-          </div>
-        )}
-
-        <div className="text-xs opacity-70 mt-1">
-          {new Date(message.timestamp).toLocaleTimeString()}
+    <div className={`chat ${isUser ? 'chat-end' : 'chat-start'}`}>
+      <div className="chat-image avatar-placeholder">
+        <div className={`w-10 rounded-full grid place-items-center ${isUser ? 'bg-accent text-accent-content' : 'bg-primary text-primary-content'}`}>
+          {isUser ? (
+            <User className="h-5 w-5" />
+          ) : (
+            <Bot className="h-5 w-5" />
+          )}
         </div>
+      </div>
+      <div className="chat-header">
+        {isUser ? "You" : "Student AI"}
+        <time className="text-xs opacity-50 ml-1">
+          {new Date(message.timestamp).toLocaleTimeString()}
+        </time>
+      </div>
+      <div className={`chat-bubble ${isUser ? 'chat-bubble-accent' : 'chat-bubble-primary'} prose prose-sm max-w-none`}>
+        <div dangerouslySetInnerHTML={renderMarkdown(message.content)} />
+      </div>
+      <div className="chat-footer opacity-50">
+        {!isUser && (
+          <button
+            className="btn btn-circle btn-xs"
+            onClick={toggleAudio}
+            aria-label={isAudioPlaying ? "Stop speech" : "Read aloud"}
+          >
+            {isAudioPlaying ? (
+              <X className="h-4 w-4" />
+            ) : (
+              <Volume2 className="h-4 w-4" />
+            )}
+          </button>
+        )}
       </div>
     </div>
   );

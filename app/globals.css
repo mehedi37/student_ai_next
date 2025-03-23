@@ -1,4 +1,9 @@
 @import "tailwindcss";
+@plugin "daisyui" {
+  themes: light, dark --prefersdark, cupcake, bumblebee --default, emerald, corporate, synthwave, retro, cyberpunk, valentine, halloween, garden, forest, aqua, lofi, pastel, fantasy, wireframe, black, luxury, dracula, cmyk, autumn, business, acid, lemonade, night, coffee, winter;
+  logs: false;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -26,13 +31,6 @@
 }
 
 body {
-  color: rgb(var(--foreground-rgb));
-  background: linear-gradient(
-      to bottom,
-      transparent,
-      rgb(var(--background-end-rgb))
-    )
-    rgb(var(--background-start-rgb));
   min-height: 100vh;
   font-family: Arial, Helvetica, sans-serif;
 }
@@ -82,4 +80,174 @@ body {
     transform: scale(2);
     opacity: 0;
   }
+}
+
+/* Base styles */
+html, body {
+  height: 100%;
+  width: 100%;
+}
+
+/* Markdown styles for chat */
+.markdown {
+  @apply text-base-content;
+}
+
+.markdown h1 {
+  @apply text-2xl font-bold my-4;
+}
+
+.markdown h2 {
+  @apply text-xl font-bold my-3;
+}
+
+.markdown h3 {
+  @apply text-lg font-bold my-2;
+}
+
+.markdown p {
+  @apply my-2;
+}
+
+.markdown ul {
+  @apply list-disc pl-6 my-2;
+}
+
+.markdown ol {
+  @apply list-decimal pl-6 my-2;
+}
+
+.markdown blockquote {
+  @apply border-l-4 border-base-300 pl-4 py-1 my-2;
+}
+
+.markdown pre {
+  @apply bg-base-300 p-4 rounded my-4 overflow-x-auto;
+}
+
+.markdown code {
+  @apply bg-base-300 px-1 py-0.5 rounded;
+}
+
+.markdown pre code {
+  @apply bg-transparent p-0;
+}
+
+.markdown a {
+  @apply text-primary underline;
+}
+
+.markdown a:hover {
+  @apply text-primary opacity-80;
+}
+
+.markdown table {
+  @apply border-collapse table-auto w-full my-4;
+}
+
+.markdown th, .markdown td {
+  @apply border border-base-300 px-4 py-2;
+}
+
+.markdown th {
+  @apply bg-base-200;
+}
+
+.markdown img {
+  @apply max-w-full h-auto my-4;
+}
+
+/* Custom scrollbar for modern browsers */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-secondary);
+}
+
+/* Add these styles to your global CSS */
+.hide-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.hide-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.hide-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(0, 0, 0, 0.1);
+  border-radius: 20px;
+}
+
+.hide-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(0, 0, 0, 0.2);
+}
+
+/* Dark theme improvements */
+[data-theme="dark"] .card,
+[data-theme="cyberpunk"] .card,
+[data-theme="synthwave"] .card,
+[data-theme="night"] .card,
+[data-theme="dracula"] .card {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+}
+
+/* Improved chat bubble styling */
+.chat-bubble {
+  position: relative;
+  transition: all 0.2s;
+}
+
+.chat-bubble:hover {
+  filter: brightness(1.05);
+}
+
+/* Glassmorphism for certain UI elements */
+.glass-card {
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.btn {
+  transition: all 0.2s;
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+.card {
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+}
+
+/* Ensure proper text contrast in dark mode */
+[data-theme="dark"] .text-base-content,
+[data-theme="synthwave"] .text-base-content,
+[data-theme="black"] .text-base-content,
+[data-theme="dracula"] .text-base-content,
+[data-theme="night"] .text-base-content {
+  color: hsl(var(--bc));
 }

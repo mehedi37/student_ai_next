@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import { api } from '@/utils/api';
 import Link from 'next/link';
+import ThemeSwitcher from '@/components/ThemeSwitcher';
+import { LogOut } from 'lucide-react';
 
 export default function Sidebar({ user, onLogout, activeSession, setActiveSession }) {
   const [sessions, setSessions] = useState([]);
@@ -63,107 +65,137 @@ export default function Sidebar({ user, onLogout, activeSession, setActiveSessio
   };
 
   return (
-    <div className="w-64 bg-gray-900 text-white flex flex-col h-screen">
-      {/* User profile section */}
-      <div className="p-4 border-b border-gray-700">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-full bg-blue-600 flex items-center justify-center">
-            {user?.username?.charAt(0).toUpperCase() || 'U'}
+    <div className="drawer-side">
+      <label htmlFor="sidebar-drawer" aria-label="close sidebar" className="drawer-overlay"></label>
+      <aside className="bg-base-200 w-80 h-full flex flex-col border-r border-base-300">
+        {/* User profile section */}
+        <div className="p-5 border-b border-base-300 bg-base-100">
+          <div className="flex items-center space-x-3">
+            <div className="avatar-placeholder">
+              <div className="bg-primary text-primary-content rounded-full w-12 mask mask-squircle">
+                <span className="text-lg">{user?.username?.charAt(0).toUpperCase() || 'U'}</span>
+              </div>
+            </div>
+            <div>
+              <div className="font-bold">{user?.username}</div>
+              <div className="text-xs opacity-70">{user?.email}</div>
+            </div>
           </div>
-          <div>
-            <div className="font-medium truncate">{user?.username}</div>
-            <div className="text-xs text-gray-400 truncate">{user?.email}</div>
+          <div className="flex justify-between items-center mt-4">
+            <button
+              onClick={onLogout}
+              className="btn btn-error btn-sm"
+            >
+              <LogOut className="h-4 w-4 mr-1" />
+              Logout
+            </button>
+            <ThemeSwitcher />
           </div>
         </div>
-        <button
-          onClick={onLogout}
-          className="mt-3 w-full text-sm bg-red-600 hover:bg-red-700 py-1 px-2 rounded"
-        >
-          Logout
-        </button>
-      </div>
 
-      {/* Tabs */}
-      <div className="flex border-b border-gray-700">
-        <button
-          className={`flex-1 py-2 text-center ${activeTab === 'sessions' ? 'bg-gray-800' : ''}`}
-          onClick={() => setActiveTab('sessions')}
-        >
-          Sessions
-        </button>
-        <button
-          className={`flex-1 py-2 text-center ${activeTab === 'documents' ? 'bg-gray-800' : ''}`}
-          onClick={() => setActiveTab('documents')}
-        >
-          Documents
-        </button>
-      </div>
+        {/* Tabs */}
+        <div className="tabs tabs-boxed m-2">
+          <button
+            className={`tab ${activeTab === 'sessions' ? 'tab-active' : ''}`}
+            onClick={() => setActiveTab('sessions')}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
+            </svg>
+            Sessions
+          </button>
+          <button
+            className={`tab ${activeTab === 'documents' ? 'tab-active' : ''}`}
+            onClick={() => setActiveTab('documents')}
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Documents
+          </button>
+        </div>
 
-      {/* Content based on active tab */}
-      <div className="flex-1 overflow-y-auto">
-        {activeTab === 'sessions' && (
-          <div>
-            <button
-              onClick={createNewSession}
-              className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white flex justify-center items-center"
-            >
-              <span>New Chat</span>
-            </button>
+        {/* Content based on active tab */}
+        <div className="flex overflow-y-auto hide-scrollbar">
+          {activeTab === 'sessions' && (
+            <div>
+              <button
+                onClick={createNewSession}
+                className="btn btn-primary w-full m-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                </svg>
+                New Chat
+              </button>
 
-            {isLoadingSessions ? (
-              <div className="text-center p-4 text-gray-400">Loading...</div>
-            ) : (
-              <ul>
-                {sessions.map(session => (
-                  <li
-                    key={session.session_id}
-                    className={`px-4 py-2 hover:bg-gray-800 cursor-pointer border-l-4 ${
-                      activeSession?.session_id === session.session_id
-                        ? 'border-blue-500 bg-gray-800'
-                        : 'border-transparent'
-                    }`}
-                    onClick={() => handleSessionClick(session)}
-                  >
-                    <div className="text-sm truncate">Chat {session.session_id.substring(0, 8)}</div>
-                    <div className="text-xs text-gray-400">
-                      {session.messages_count} messages
-                    </div>
-                  </li>
-                ))}
-                {sessions.length === 0 && (
-                  <li className="px-4 py-2 text-gray-400 text-sm">No sessions yet</li>
-                )}
-              </ul>
-            )}
-          </div>
-        )}
+              {isLoadingSessions ? (
+                <div className="flex justify-center p-4">
+                  <span className="loading loading-spinner loading-md"></span>
+                </div>
+              ) : (
+                <ul className="menu bg-base-200 rounded-box">
+                  {sessions.map(session => (
+                    <li key={session.session_id}>
+                      <button
+                        className={activeSession?.session_id === session.session_id ? 'active' : ''}
+                        onClick={() => handleSessionClick(session)}
+                      >
+                        <div>
+                          <div className="font-medium">Chat {session.session_id.substring(0, 8)}</div>
+                          <div className="text-xs opacity-70">{session.messages_count} messages</div>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                  {sessions.length === 0 && (
+                    <li className="disabled">
+                      <span className="opacity-70">No sessions yet</span>
+                    </li>
+                  )}
+                </ul>
+              )}
+            </div>
+          )}
 
-        {activeTab === 'documents' && (
-          <div>
-            <Link href="/upload"
-              className="w-full py-2 px-4 bg-green-600 hover:bg-green-700 text-white flex justify-center items-center"
-            >
-              <span>Upload Document</span>
-            </Link>
+          {activeTab === 'documents' && (
+            <div>
+              <Link href="/upload"
+                className="btn btn-accent w-full m-2"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                </svg>
+                Upload Document
+              </Link>
 
-            {isLoadingDocs ? (
-              <div className="text-center p-4 text-gray-400">Loading...</div>
-            ) : (
-              <ul>
-                {documents.map(doc => (
-                  <li key={doc.document_id} className="px-4 py-2 hover:bg-gray-800">
-                    <div className="text-sm truncate">{doc.title || doc.document_id.substring(0, 12)}</div>
-                    <div className="text-xs text-gray-400">{doc.source_type}</div>
-                  </li>
-                ))}
-                {documents.length === 0 && (
-                  <li className="px-4 py-2 text-gray-400 text-sm">No documents yet</li>
-                )}
-              </ul>
-            )}
-          </div>
-        )}
-      </div>
+              {isLoadingDocs ? (
+                <div className="flex justify-center p-4">
+                  <span className="loading loading-spinner loading-md"></span>
+                </div>
+              ) : (
+                <ul className="menu bg-base-200 rounded-box">
+                  {documents.map(doc => (
+                    <li key={doc.document_id}>
+                      <button>
+                        <div>
+                          <div className="font-medium truncate">{doc.title || doc.document_id.substring(0, 12)}</div>
+                          <div className="text-xs opacity-70">{doc.source_type}</div>
+                        </div>
+                      </button>
+                    </li>
+                  ))}
+                  {documents.length === 0 && (
+                    <li className="disabled">
+                      <span className="opacity-70">No documents yet</span>
+                    </li>
+                  )}
+                </ul>
+              )}
+            </div>
+          )}
+        </div>
+      </aside>
     </div>
   );
 }

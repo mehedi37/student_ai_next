@@ -5,12 +5,14 @@ import { api } from '@/utils/api';
 import { v4 as uuidv4 } from 'uuid';
 import websocketManager from '@/utils/websocket';
 import ChatMessage from './ChatMessage';
+import { Mic, MicOff, Send, Bot, UserIcon } from 'lucide-react';
 
 export default function ChatInterface({ user, session, wsClientId }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState(session?.session_id || null);
+  const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
 
@@ -166,20 +168,73 @@ export default function ChatInterface({ user, session, wsClientId }) {
     }
   };
 
+  const toggleVoiceRecognition = () => {
+    if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
+      alert('Speech recognition is not supported in your browser.');
+      return;
+    }
+
+    if (isListening) {
+      setIsListening(false);
+      // Stop speech recognition
+      window.recognition?.stop();
+    } else {
+      setIsListening(true);
+
+      // Initialize speech recognition
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognition.continuous = true;
+      recognition.interimResults = true;
+
+      recognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map(result => result[0])
+          .map(result => result.transcript)
+          .join('');
+
+        setInput(transcript);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognition.start();
+      window.recognition = recognition;
+    }
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-270px)] max-w-4xl mx-auto">
+    <div className="flex flex-col h-[calc(100vh-120px)] max-w-4xl mx-auto relative">
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto space-y-4 pb-4 px-2"
+        className="flex-1 overflow-y-auto space-y-4 pb-32 px-2 hide-scrollbar"
       >
         {messages.length === 0 ? (
-          <div className="text-center py-10">
-            <h2 className="text-2xl font-bold text-gray-500">Welcome to Student AI Bot</h2>
-            <p className="text-gray-400 mt-2">Ask me anything related to your studies!</p>
+          <div className="hero bg-base-200 rounded-box p-10 mt-8">
+            <div className="hero-content text-center">
+              <div className="max-w-md">
+                <h2 className="text-2xl font-bold">Welcome to Student AI Bot</h2>
+                <p className="py-4">Ask me anything related to your studies!</p>
+                <div className="flex justify-center items-center gap-4 mt-4">
+                  <div className=" placeholder">
+                    <div className="bg-primary text-primary-content w-16 h-16 rounded-full flex items-center justify-center">
+                      <Bot size={32} />
+                    </div>
+                  </div>
+                  <div className="placeholder">
+                    <div className="bg-accent text-accent-content w-16 h-16 rounded-full flex items-center justify-center">
+                      <UserIcon size={32} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         ) : (
           messages.map(message => (
@@ -193,34 +248,54 @@ export default function ChatInterface({ user, session, wsClientId }) {
 
         {/* Loading indicator */}
         {isLoading && (
-          <div className="flex items-center space-x-2 p-4 bg-gray-50 rounded-lg shadow-sm">
-            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
-            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
-            <div className="w-2 h-2 bg-blue-600 rounded-full animate-bounce" style={{ animationDelay: "600ms" }}></div>
-            <span className="text-sm text-gray-500 ml-2">Thinking...</span>
+          <div className="chat chat-start">
+            <div className="chat-bubble chat-bubble-primary min-h-10 flex items-center gap-2">
+              <span className="loading loading-dots loading-md"></span>
+            </div>
           </div>
         )}
 
         <div ref={messagesEndRef} />
       </div>
 
-      <form onSubmit={handleSubmit} className="flex items-center border-t border-gray-200 p-4 bg-white rounded-lg mt-2">
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a question..."
-          className="flex-1 px-4 py-2 border rounded-l-lg focus:outline-none"
-          disabled={isLoading}
-        />
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="bg-blue-600 text-white px-4 py-2 rounded-r-lg hover:bg-blue-700 disabled:bg-blue-300"
+      <div className="fixed bottom-0 w-screen z-10 items-center">
+        <form
+          onSubmit={handleSubmit}
+          className="join w-full max-w-4xl mx-auto p-4 bg-base-100 border-t border-base-300 shadow-lg rounded-t-2xl"
         >
-          {isLoading ? 'Thinking...' : 'Send'}
-        </button>
-      </form>
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Ask a question..."
+            className="input input-bordered join-item flex-1"
+            disabled={isLoading}
+          />
+          <button
+            type="button"
+            onClick={toggleVoiceRecognition}
+            className={`btn ${isListening ? 'btn-accent' : 'btn-ghost'} join-item`}
+            disabled={isLoading}
+          >
+            {isListening ? (
+              <Mic className="h-6 w-6" />
+            ) : (
+              <MicOff className="h-6 w-6" />
+            )}
+          </button>
+          <button
+            type="submit"
+            disabled={isLoading}
+            className="btn btn-primary join-item"
+          >
+            {isLoading ? (
+              <span className="loading loading-spinner loading-xs"></span>
+            ) : (
+              <Send className="h-6 w-6" />
+            )}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

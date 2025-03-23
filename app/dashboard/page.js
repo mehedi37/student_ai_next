@@ -1,19 +1,21 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import { v4 as uuidv4 } from 'uuid';
 import { useAuth } from '@/components/context/AuthContext';
-import CircleBot from '@/components/CircleBot';
-import ChatInterface from '@/components/ChatInterface';
 import Sidebar from '@/components/Sidebar';
+import ChatInterface from '@/components/ChatInterface';
+import ThemeSwitcher from '@/components/ThemeSwitcher';
 import websocketManager from '@/utils/websocket';
+import { Menu } from 'lucide-react';
 
 export default function Dashboard() {
-  const { user, isLoading, logout } = useAuth();
   const router = useRouter();
-  const [isListening, setIsListening] = useState(false);
+  const { user, isLoading, logout } = useAuth();
   const [activeSession, setActiveSession] = useState(null);
-  const [wsConnected, setWsConnected] = useState(false);
+  const [wsClientId] = useState(() => uuidv4());
+  const sidebarRef = useRef(null);
 
   // Redirect if not logged in
   useEffect(() => {
@@ -24,115 +26,76 @@ export default function Dashboard() {
 
   // Connect to WebSocket
   useEffect(() => {
-    if (user && !wsConnected) {
-      websocketManager.connect()
-        .then(() => {
-          setWsConnected(true);
-          console.log('WebSocket connected with client ID:', websocketManager.getClientId());
-
-          // Add listener for connection status changes
-          const unsubscribe = websocketManager.on('connection_status', (data) => {
-            if (data.status === 'connected') {
-              setWsConnected(true);
-            } else if (data.status === 'disconnected') {
-              setWsConnected(false);
-            }
-          });
-
-          return () => unsubscribe();
-        })
-        .catch(err => {
-          console.error('Failed to connect to WebSocket:', err);
-        });
+    if (user) {
+      const connectWebSocket = async () => {
+        await websocketManager.connect(wsClientId);
+      };
+      connectWebSocket();
     }
-
     return () => {
-      if (wsConnected) {
-        websocketManager.disconnect();
-        setWsConnected(false);
-      }
+      websocketManager.disconnect();
     };
-  }, [user, wsConnected]);
+  }, [user, wsClientId]);
 
-  const handleStartListening = () => {
-    // Implement speech recognition here
-    if ('webkitSpeechRecognition' in window) {
-      const recognition = new window.webkitSpeechRecognition();
-      recognition.continuous = false;
-      recognition.interimResults = false;
-      recognition.lang = 'en-US';
-
-      recognition.onstart = () => {
-        setIsListening(true);
-      };
-
-      recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        console.log('Transcript:', transcript);
-        // Send transcript to ChatInterface
-        if (window.chatInterface && typeof window.chatInterface.appendUserMessage === 'function') {
-          window.chatInterface.appendUserMessage(transcript);
-        }
-      };
-
-      recognition.onerror = (event) => {
-        console.error('Speech recognition error:', event.error);
-        setIsListening(false);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognition.start();
-    } else {
-      alert('Speech recognition is not supported in your browser.');
-    }
-  };
-
-  const handleStopListening = () => {
-    // Stop speech recognition
-    if ('webkitSpeechRecognition' in window) {
-      const recognition = new window.webkitSpeechRecognition();
-      recognition.stop();
-    }
-    setIsListening(false);
+  const handleLogout = async () => {
+    await logout();
+    router.push('/');
   };
 
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
+        <span className="loading loading-spinner loading-lg text-primary"></span>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen flex bg-gray-100">
-      <Sidebar
-        user={user}
-        onLogout={logout}
-        activeSession={activeSession}
-        setActiveSession={setActiveSession}
-      />
+  if (!user) {
+    return null; // Will redirect via useEffect
+  }
 
-      <main className="flex-1 flex flex-col">
-        <div className="flex-1 p-4 overflow-y-auto">
+  return (
+    <div className="drawer">
+      <input id="sidebar-drawer" type="checkbox" className="drawer-toggle" />
+
+      <div className="drawer-content flex flex-col">
+        {/* Top navigation */}
+        <div className="navbar bg-base-100 shadow-md">
+          <div className="navbar-start">
+            <label htmlFor="sidebar-drawer" className="btn btn-square btn-ghost drawer-button">
+              <Menu className="w-5 h-5" />
+            </label>
+            <div className="text-xl font-bold ml-2">Student AI Bot</div>
+          </div>
+          <div className="navbar-center hidden lg:flex">
+            {activeSession && (
+              <div className="text-sm opacity-70">
+                Session: {activeSession.session_id.substring(0, 8)}
+              </div>
+            )}
+          </div>
+          <div className="navbar-end">
+            {/* Theme switcher removed from here as it's already in the sidebar */}
+          </div>
+        </div>
+
+        {/* Main content */}
+        <div className="flex-grow p-4 overflow-auto bg-gradient-to-b from-base-200 to-base-100">
           <ChatInterface
             user={user}
             session={activeSession}
-            wsClientId={wsConnected ? websocketManager.getClientId() : null}
+            wsClientId={wsClientId}
           />
         </div>
+      </div>
 
-        <div className="flex justify-center p-4">
-          <CircleBot
-            isListening={isListening}
-            onStartListening={handleStartListening}
-            onStopListening={handleStopListening}
-          />
-        </div>
-      </main>
+      <Sidebar
+        user={user}
+        onLogout={handleLogout}
+        activeSession={activeSession}
+        setActiveSession={setActiveSession}
+        ref={sidebarRef}
+      />
     </div>
   );
 }

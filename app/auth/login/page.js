@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/context/AuthContext';
 import Link from 'next/link';
+import ThemeSwitcher from '@/components/ThemeSwitcher';
 
 export default function Login() {
   const [email, setEmail] = useState('');
@@ -37,76 +38,90 @@ export default function Login() {
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <p>Loading...</p>
+        <span className="loading loading-spinner loading-lg text-primary"></span>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-lg shadow-md">
-        <div className="text-center">
-          <h1 className="text-3xl font-extrabold">Sign In</h1>
-          <p className="mt-2 text-gray-600">Welcome back to Student AI Bot</p>
-        </div>
+    <div className="min-h-screen bg-base-200 flex flex-col">
+      <div className="absolute top-4 right-4">
+        <ThemeSwitcher />
+      </div>
 
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-            {error}
-          </div>
-        )}
-
-        <form className="space-y-6" onSubmit={handleSubmit}>
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-              Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-              placeholder="you@example.com"
-            />
+      <div className="hero flex-grow">
+        <div className="hero-content flex-col lg:flex-row-reverse">
+          <div className="text-center lg:text-left lg:ml-8">
+            <h1 className="text-5xl font-bold">Login!</h1>
+            <p className="py-6">Access your Student AI Bot account to continue your learning journey with AI assistance tailored to your educational needs.</p>
           </div>
 
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
-              placeholder="Your password"
-            />
-          </div>
+          <div className="card flex-shrink-0 w-full max-w-sm shadow-2xl bg-base-100">
+            <div className="card-body">
+              {error && (
+                <div className="alert alert-error">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="stroke-current shrink-0 h-6 w-6" fill="none" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span>{error}</span>
+                </div>
+              )}
 
-          <div>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none"
-            >
-              {isSubmitting ? 'Signing in...' : 'Sign in'}
-            </button>
-          </div>
-        </form>
+              <form onSubmit={handleSubmit}>
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">Email</span>
+                  </label>
+                  <input
+                    type="email"
+                    placeholder="email"
+                    className="input input-bordered"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                  />
+                </div>
 
-        <div className="text-center mt-4">
-          <p className="text-sm text-gray-600">
-            Don&apos;t have an account?{' '}
-            <Link href="/auth/register" className="font-medium text-blue-600 hover:text-blue-500">
-              Register
-            </Link>
-          </p>
+                <div className="form-control">
+                  <label className="label">
+                    <span className="label-text">Password</span>
+                  </label>
+                  <input
+                    type="password"
+                    placeholder="password"
+                    className="input input-bordered"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    required
+                  />
+                  <label className="label">
+                    <a href="#" className="label-text-alt link link-hover">Forgot password?</a>
+                  </label>
+                </div>
+
+                <div className="form-control mt-6">
+                  <button
+                    type="submit"
+                    className={`btn btn-primary ${isSubmitting ? 'loading' : ''}`}
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Signing in...' : 'Login'}
+                  </button>
+                </div>
+              </form>
+
+              <div className="divider">OR</div>
+
+              <div className="text-center">
+                <p className="text-sm">
+                  Don't have an account?{' '}
+                  <Link href="/auth/register" className="link link-primary">
+                    Register
+                  </Link>
+                </p>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
