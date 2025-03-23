@@ -79,42 +79,79 @@ export const api = {
 
   // Upload endpoints
   uploads: {
-    file: (file, clientId = null) => {
+    file: (fileData, clientId = null) => {
       if (!clientId) {
         console.warn('No client_id provided for file upload, this may cause issues');
       }
 
-      const formData = new FormData();
-      formData.append('file', file);
+      let formData;
+      // Handle different input types
+      if (fileData instanceof FormData) {
+        // If already a FormData, use it directly
+        formData = fileData;
+      } else {
+        // Otherwise create a new FormData and append the file
+        formData = new FormData();
+        formData.append('file', fileData);
+      }
 
-      // Ensure client_id is always included in the URL
       const endpoint = `/uploads/file${clientId ? `?client_id=${encodeURIComponent(clientId)}` : ''}`;
 
       return fetchAPI(endpoint, {
         method: 'POST',
         body: formData,
-        // Don't set Content-Type header for FormData, browser will set it with boundary
+        // Don't set Content-Type header, browser will set it with boundary
       });
     },
 
-    youtube: (url, clientId = null) => {
-      if (!clientId) {
-        console.warn('No client_id provided for YouTube upload, this may cause issues');
-      }
-
+    youtube: (urlData, clientId = null) => {
       const endpoint = `/uploads/youtube${clientId ? `?client_id=${encodeURIComponent(clientId)}` : ''}`;
 
+      // Format the request body according to the YouTubeUploadRequest schema
+      let normalizedUrl = urlData;
+      if (typeof urlData === 'string') {
+        // Normalize YouTube URLs
+        if (urlData.includes('youtu.be/')) {
+          // Convert youtu.be format to full URL
+          const videoId = urlData.split('youtu.be/')[1].split('?')[0];
+          normalizedUrl = `https://www.youtube.com/watch?v=${videoId}`;
+        }
+
+        const requestBody = { url: normalizedUrl };
+        return fetchAPI(endpoint, {
+          method: 'POST',
+          body: JSON.stringify(requestBody),
+        });
+      }
+
+      // Handle if urlData is already an object
       return fetchAPI(endpoint, {
         method: 'POST',
-        body: JSON.stringify({ url }),
+        body: JSON.stringify(urlData),
       });
     },
 
     status: (taskId) => fetchAPI(`/uploads/status/${taskId}`),
     documents: () => fetchAPI('/uploads/documents'),
-    terminateTask: (taskId) => fetchAPI(`/uploads/task/${taskId}`, {
-      method: 'DELETE',
-    }),
+    terminateTask: (taskId) => {
+      if (!taskId) {
+        return Promise.reject(new Error('No task ID provided'));
+      }
+
+      return fetchAPI(`/uploads/task/${taskId}`, {
+        method: 'DELETE',
+      }).then(response => {
+        // Return a standardized response
+        return {
+          success: true,
+          message: response.message || 'Task terminated successfully',
+          ...response
+        };
+      }).catch(error => {
+        console.error('Error terminating task:', error);
+        throw error;
+      });
+    },
   },
 
   // Sessions endpoints

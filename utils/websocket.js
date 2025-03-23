@@ -3,52 +3,60 @@ import { v4 as uuidv4 } from 'uuid';
 class WebSocketManager {
   constructor() {
     this.socket = null;
-    this.clientId = uuidv4(); // Generate a UUID on initialization
+    this.clientId = null;
+    this.eventHandlers = {};
     this.isConnected = false;
-    this.eventListeners = {};
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
-    this.reconnectDelay = 1000;
-    this.intentionalDisconnect = false;
-    this.autoReconnect = true;
+    this.reconnectDelay = 2000; // Start with 2 seconds
+    this.pingInterval = null;
   }
 
-  connect() {
+  // Connect to WebSocket server
+  async connect(clientId = '') {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
+      console.log('WebSocket already connected');
+      this.isConnected = true;
+      return Promise.resolve();
+    }
+
     return new Promise((resolve, reject) => {
-      if (this.isConnected) {
-        resolve(this.clientId);
-        return;
-      }
-
-      // Ensure we have a client ID before connecting
-      if (!this.clientId) {
-        this.clientId = uuidv4();
-      }
-
-      const host = process.env.NEXT_PUBLIC_WS_URL || `wss://${window.location.hostname}`;
-
       try {
+        this.clientId = clientId || this.clientId || uuidv4();
+
+        // Use the proper WebSocket URL
+        const host = process.env.NEXT_PUBLIC_WEBSOCKET_URL ||
+                    process.env.NEXT_PUBLIC_API_URL?.replace(/^http/, 'ws') ||
+                    window.location.origin.replace(/^http/, 'ws');
+
         console.log(`Connecting to WebSocket with client ID: ${this.clientId}`);
-        this.socket = new WebSocket(`${host}/client/${this.clientId}`);
+        const wsUrl = `${host}/ws/client/${this.clientId}`;
+        console.log(`WebSocket URL: ${wsUrl}`);
+
+        this.socket = new WebSocket(wsUrl);
 
         this.socket.onopen = () => {
-          console.log('WebSocket connected');
+          console.log('WebSocket connected successfully');
           this.isConnected = true;
-          resolve(this.clientId);
+          this.reconnectAttempts = 0;
+          this.pingInterval = setInterval(() => this.ping(), 30000);
+          resolve();
         };
 
         this.socket.onmessage = (event) => {
-          this.handleMessage(event);
+          this.handleMessage(event.data);
         };
 
         this.socket.onerror = (error) => {
           console.error('WebSocket error:', error);
+          this.isConnected = false;
           reject(error);
         };
 
         this.socket.onclose = this.handleClose.bind(this);
       } catch (error) {
         console.error('WebSocket connection error:', error);
+        this.isConnected = false;
         reject(error);
       }
     });
@@ -57,99 +65,135 @@ class WebSocketManager {
   handleClose(event) {
     console.log('WebSocket closed:', event);
     this.isConnected = false;
+    clearInterval(this.pingInterval);
 
-    // Attempt to reconnect after brief delay if not intentionally disconnected
-    if (!this.intentionalDisconnect && this.autoReconnect) {
-      setTimeout(() => {
-        this.connect().catch(err => {
+    // Attempt to reconnect
+    if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      const delay = this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts);
+      this.reconnectAttempts++;
+
+      setTimeout(async () => {
+        try {
+          await this.connect();
+        } catch (err) {
           console.error('Failed to reconnect WebSocket:', err);
-        });
-      }, 3000);
+        }
+      }, delay);
     }
   }
 
-  handleMessage(event) {
+  // Handle incoming WebSocket messages
+  handleMessage(data) {
     try {
-      const data = JSON.parse(event.data);
+      const parsedData = JSON.parse(data);
 
-      // Handle embedding progress updates specially
-      if (data.type === 'upload_progress') {
-        // Extract additional embedding information if available
-        if (data.stage === 'embedding' && data.metadata) {
-          data.embeddingDetails = {
-            chunksEmbedded: data.metadata.chunks_embedded || 0,
-            totalChunks: data.metadata.total_chunks || data.total || 0,
-            currentFile: data.metadata.current_file,
-            remainingFiles: data.metadata.remaining_files
-          };
+      // Handle different message types based on OpenAPI spec
+      if (parsedData.type === 'upload_progress') {
+        this.emit('upload_progress', parsedData);
+
+        // Also emit a task-specific event if task_id is present
+        if (parsedData.task_id) {
+          this.emit(`task:${parsedData.task_id}`, parsedData);
         }
+        return;
       }
 
-      // Emit the event to all registered listeners
-      const listeners = this.eventListeners[data.type] || [];
-      listeners.forEach(callback => callback(data));
+      // Handle pong response to maintain connection
+      if (parsedData.type === 'pong') {
+        // Reset reconnect attempts as connection is healthy
+        this.reconnectAttempts = 0;
+        return;
+      }
 
-      // Also emit to wildcard listeners
-      const wildcardListeners = this.eventListeners['*'] || [];
-      wildcardListeners.forEach(callback => callback(data));
+      // Handle different message types
+      if (parsedData.type && this.eventHandlers[parsedData.type]) {
+        this.emit(parsedData.type, parsedData);
+      } else {
+        // Generic message handler
+        this.emit('message', parsedData);
+      }
     } catch (error) {
       console.error('Error parsing WebSocket message:', error);
     }
   }
 
-  on(eventType, callback) {
-    if (!this.eventListeners[eventType]) {
-      this.eventListeners[eventType] = [];
+  // Register event handler
+  on(event, callback) {
+    if (!this.eventHandlers[event]) {
+      this.eventHandlers[event] = [];
     }
-    this.eventListeners[eventType].push(callback);
+    this.eventHandlers[event].push(callback);
 
-    return () => this.off(eventType, callback);
+    // Return unsubscribe function
+    return () => this.off(event, callback);
   }
 
-  off(eventType, callback) {
-    if (this.eventListeners[eventType]) {
-      this.eventListeners[eventType] = this.eventListeners[eventType]
-        .filter(cb => cb !== callback);
+  // Remove event handler
+  off(event, callback) {
+    if (this.eventHandlers[event]) {
+      this.eventHandlers[event] = this.eventHandlers[event].filter(handler => handler !== callback);
     }
   }
 
-  send(data) {
-    if (!this.isConnected) {
-      return Promise.reject(new Error('WebSocket not connected'));
+  // Emit event to handlers
+  emit(event, data) {
+    if (this.eventHandlers[event]) {
+      this.eventHandlers[event].forEach(handler => handler(data));
+    }
+  }
+
+  // Send data through WebSocket
+  async send(data) {
+    if (!this.socket || this.socket.readyState !== WebSocket.OPEN) {
+      try {
+        await this.connect();
+      } catch (err) {
+        return Promise.reject(new Error('WebSocket not connected'));
+      }
     }
 
     return new Promise((resolve, reject) => {
       try {
-        // Add timestamp to all messages
-        const messageWithTimestamp = {
-          ...data,
-          timestamp: new Date().toISOString()
-        };
-
-        this.socket.send(JSON.stringify(messageWithTimestamp));
+        const message = typeof data === 'string' ? data : JSON.stringify(data);
+        this.socket.send(message);
         resolve();
-      } catch (error) {
-        console.error('Error sending message:', error);
-        reject(error);
+      } catch (err) {
+        reject(err);
       }
     });
   }
 
-  disconnect() {
-    if (this.socket) {
-      this.socket.close();
-      this.socket = null;
-      this.isConnected = false;
-      this.eventListeners = {};
+  // Send a ping to keep the connection alive
+  ping() {
+    if (this.isConnected) {
+      this.send({ type: 'ping' }).catch(() => {
+        // If ping fails, connection might be lost - try to reconnect
+        this.isConnected = false;
+        this.connect().catch(() => {}); // Silently catch as handleClose will handle reconnect
+      });
     }
   }
 
-  getClientId() {
-    return this.clientId;
+  // Disconnect WebSocket
+  disconnect() {
+    if (this.socket) {
+      clearInterval(this.pingInterval);
+      this.socket.close();
+      this.socket = null;
+      this.isConnected = false;
+    }
+  }
+
+  // Subscribe to updates for a specific task
+  subscribeToTask(taskId, callback) {
+    if (!taskId) return () => {};
+
+    const eventName = `task:${taskId}`;
+    return this.on(eventName, callback);
   }
 }
 
-// Create a singleton instance
+// Singleton instance - only create in browser environment
 const websocketManager = typeof window !== 'undefined' ? new WebSocketManager() : null;
 
 export default websocketManager;
