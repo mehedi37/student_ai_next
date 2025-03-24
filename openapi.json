@@ -96,19 +96,19 @@
         }
       }
     },
-    "/api/auth/login/oauth": {
+    "/api/auth/token": {
       "post": {
         "tags": [
           "auth"
         ],
         "summary": "Login Oauth",
         "description": "Authenticate a user using OAuth2 password flow.\nThis endpoint is compatible with OpenAPI's OAuth2 password flow.\n\nArgs:\n    response: FastAPI response object for setting cookies\n    form_data: OAuth2 form data\n\nReturns:\n    Access token",
-        "operationId": "login_oauth_api_auth_login_oauth_post",
+        "operationId": "login_oauth_api_auth_token_post",
         "requestBody": {
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/Body_login_oauth_api_auth_login_oauth_post"
+                "$ref": "#/components/schemas/Body_login_oauth_api_auth_token_post"
               }
             }
           },
@@ -1667,7 +1667,7 @@
   },
   "components": {
     "schemas": {
-      "Body_login_oauth_api_auth_login_oauth_post": {
+      "Body_login_oauth_api_auth_token_post": {
         "properties": {
           "grant_type": {
             "anyOf": [
@@ -1722,7 +1722,7 @@
           "username",
           "password"
         ],
-        "title": "Body_login_oauth_api_auth_login_oauth_post"
+        "title": "Body_login_oauth_api_auth_token_post"
       },
       "Body_upload_file_api_uploads_file_post": {
         "properties": {

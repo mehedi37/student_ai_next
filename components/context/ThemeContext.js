@@ -1,48 +1,64 @@
 'use client';
 
-import { createContext, useContext, useState, useEffect } from 'react';
-
-const allThemes = [
-  'light', 'dark', 'cupcake', 'bumblebee', 'emerald', 'corporate',
-  'synthwave', 'retro', 'cyberpunk', 'valentine', 'halloween', 'garden',
-  'forest', 'aqua', 'lofi', 'pastel', 'fantasy', 'wireframe', 'black',
-  'luxury', 'dracula', 'cmyk', 'autumn', 'business', 'acid', 'lemonade',
-  'night', 'coffee', 'winter'
-];
+import { createContext, useState, useContext, useEffect } from 'react';
 
 const ThemeContext = createContext({
-  theme: 'bumblebee',
+  theme: 'dark',
   setTheme: () => {},
-  themes: allThemes
+  themes: [],
 });
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState('bumblebee');
-  const themes = allThemes;
+  const [theme, setTheme] = useState('dark');
+  const [isClient, setIsClient] = useState(false);
 
-  // Initialize theme from localStorage on client side
+  // These are the themes available in DaisyUI
+  const themes = [
+    'light', 'dark', 'cupcake', 'bumblebee', 'emerald',
+    'corporate', 'synthwave', 'retro', 'cyberpunk', 'valentine',
+    'halloween', 'garden', 'forest', 'aqua', 'lofi', 'pastel',
+    'fantasy', 'wireframe', 'black', 'luxury', 'dracula', 'cmyk',
+    'autumn', 'business', 'acid', 'lemonade', 'night', 'coffee', 'winter'
+  ];
+
+  // Set isClient to true when the component mounts
   useEffect(() => {
+    setIsClient(true);
+
+    // Try to get theme from localStorage on client side
     const savedTheme = localStorage.getItem('theme');
+
+    // Set theme based on saved preference or system preference
     if (savedTheme && themes.includes(savedTheme)) {
       setTheme(savedTheme);
-      document.documentElement.setAttribute('data-theme', savedTheme);
-    } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setTheme('dark');
-      document.documentElement.setAttribute('data-theme', 'dark');
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      const defaultTheme = prefersDark ? 'dark' : 'light';
+      setTheme(defaultTheme);
+      localStorage.setItem('theme', defaultTheme);
     }
   }, []);
 
-  // Update theme in localStorage and HTML attribute
-  const changeTheme = (newTheme) => {
-    if (themes.includes(newTheme)) {
-      localStorage.setItem('theme', newTheme);
-      document.documentElement.setAttribute('data-theme', newTheme);
-      setTheme(newTheme);
+  // Apply theme to html element whenever it changes
+  useEffect(() => {
+    if (isClient) {
+      document.documentElement.setAttribute('data-theme', theme);
+      localStorage.setItem('theme', theme);
     }
+  }, [theme, isClient]);
+
+  const handleSetTheme = (newTheme) => {
+    setTheme(newTheme);
   };
 
   return (
-    <ThemeContext.Provider value={{ theme, setTheme: changeTheme, themes }}>
+    <ThemeContext.Provider
+      value={{
+        theme,
+        setTheme: handleSetTheme,
+        themes,
+      }}
+    >
       {children}
     </ThemeContext.Provider>
   );

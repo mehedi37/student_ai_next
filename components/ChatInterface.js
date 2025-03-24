@@ -5,7 +5,8 @@ import { api } from '@/utils/api';
 import { v4 as uuidv4 } from 'uuid';
 import websocketManager from '@/utils/websocket';
 import ChatMessage from './ChatMessage';
-import { Mic, MicOff, Send, Bot, UserIcon } from 'lucide-react';
+import Link from 'next/link';
+import { Mic, MicOff, Send, Upload } from 'lucide-react';
 
 export default function ChatInterface({ user, session, wsClientId }) {
   const [messages, setMessages] = useState([]);
@@ -15,19 +16,6 @@ export default function ChatInterface({ user, session, wsClientId }) {
   const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
-
-  // Expose method to append user message (used by speech recognition)
-  useEffect(() => {
-    window.chatInterface = {
-      appendUserMessage: (text) => {
-        handleSubmit(null, text);
-      }
-    };
-
-    return () => {
-      delete window.chatInterface;
-    };
-  }, [sessionId]);
 
   // Update session ID when prop changes
   useEffect(() => {
@@ -210,29 +198,18 @@ export default function ChatInterface({ user, session, wsClientId }) {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-120px)] max-w-4xl mx-auto relative">
+    <div className="flex flex-col h-full">
+      {/* Messages container with better scrolling */}
       <div
         ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto space-y-4 pb-32 px-2 hide-scrollbar"
+        className="flex-1 overflow-y-auto space-y-4 px-2 pb-4 chat-messages"
       >
         {messages.length === 0 ? (
-          <div className="hero bg-base-200 rounded-box p-10 mt-8">
+          <div className="hero bg-base-200 rounded-box p-6 mt-4">
             <div className="hero-content text-center">
               <div className="max-w-md">
                 <h2 className="text-2xl font-bold">Welcome to Student AI Bot</h2>
                 <p className="py-4">Ask me anything related to your studies!</p>
-                <div className="flex justify-center items-center gap-4 mt-4">
-                  <div className=" placeholder">
-                    <div className="bg-primary text-primary-content w-16 h-16 rounded-full flex items-center justify-center">
-                      <Bot size={32} />
-                    </div>
-                  </div>
-                  <div className="placeholder">
-                    <div className="bg-accent text-accent-content w-16 h-16 rounded-full flex items-center justify-center">
-                      <UserIcon size={32} />
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -258,44 +235,46 @@ export default function ChatInterface({ user, session, wsClientId }) {
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="fixed bottom-0 w-screen z-10 items-center">
-        <form
-          onSubmit={handleSubmit}
-          className="join w-full max-w-4xl mx-auto p-4 bg-base-100 border-t border-base-300 shadow-lg rounded-t-2xl"
+      {/* Input form with fixed bottom position */}
+      <form
+        onSubmit={handleSubmit}
+        className="flex gap-2 mt-4 p-2 bg-base-100 rounded-lg border border-base-300"
+      >
+        <Link href="/upload" className="btn btn-ghost">
+          <Upload className="h-5 w-5" />
+        </Link>
+        <input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Ask a question..."
+          className="input input-bordered flex-1"
+          disabled={isLoading}
+        />
+        <button
+          type="button"
+          onClick={toggleVoiceRecognition}
+          className={`btn ${isListening ? 'btn-accent' : 'btn-ghost'}`}
+          disabled={isLoading}
         >
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask a question..."
-            className="input input-bordered join-item flex-1"
-            disabled={isLoading}
-          />
-          <button
-            type="button"
-            onClick={toggleVoiceRecognition}
-            className={`btn ${isListening ? 'btn-accent' : 'btn-ghost'} join-item`}
-            disabled={isLoading}
-          >
-            {isListening ? (
-              <Mic className="h-6 w-6" />
-            ) : (
-              <MicOff className="h-6 w-6" />
-            )}
-          </button>
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="btn btn-primary join-item"
-          >
-            {isLoading ? (
-              <span className="loading loading-spinner loading-xs"></span>
-            ) : (
-              <Send className="h-6 w-6" />
-            )}
-          </button>
-        </form>
-      </div>
+          {isListening ? (
+            <Mic className="h-5 w-5" />
+          ) : (
+            <MicOff className="h-5 w-5" />
+          )}
+        </button>
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="btn btn-primary"
+        >
+          {isLoading ? (
+            <span className="loading loading-spinner loading-xs"></span>
+          ) : (
+            <Send className="h-5 w-5" />
+          )}
+        </button>
+      </form>
     </div>
   );
 }

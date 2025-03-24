@@ -10,6 +10,7 @@ export function useTaskProgress() {
   const [progress, setProgress] = useState(null);
   const [error, setError] = useState(null);
   const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
+  const [pollingIntervalId, setPollingIntervalId] = useState(null);
 
   // Initial fetch of task status
   const fetchInitialStatus = useCallback(async (id) => {
@@ -31,21 +32,66 @@ export function useTaskProgress() {
     if (!id) return null;
 
     console.log(`Starting polling for task ${id}`);
+
+    // Clear any existing polling interval
+    if (pollingIntervalId) {
+      clearInterval(pollingIntervalId);
+    }
+
     const intervalId = setInterval(async () => {
       const status = await fetchInitialStatus(id);
 
       // Stop polling if task is completed, failed or cancelled
       if (status && ['completed', 'failed', 'cancelled'].includes(status.status)) {
         clearInterval(intervalId);
+        setPollingIntervalId(null);
       }
     }, interval);
 
+    setPollingIntervalId(intervalId);
     return intervalId;
-  }, [fetchInitialStatus]);
+  }, [fetchInitialStatus, pollingIntervalId]);
+
+  // Handle WebSocket connection changes
+  useEffect(() => {
+    const handleConnection = () => setIsWebSocketConnected(true);
+    const handleDisconnection = () => {
+      setIsWebSocketConnected(false);
+
+      // Start polling if we have an active task
+      if (taskId) {
+        startPolling(taskId);
+      }
+    };
+
+    // Subscribe to connection status events
+    if (websocketManager) {
+      websocketManager.on('connected', handleConnection);
+      websocketManager.on('disconnected', handleDisconnection);
+
+      // Initialize connection status
+      setIsWebSocketConnected(websocketManager.isConnected);
+    }
+
+    return () => {
+      if (websocketManager) {
+        websocketManager.off('connected', handleConnection);
+        websocketManager.off('disconnected', handleDisconnection);
+      }
+    };
+  }, [taskId, startPolling]);
 
   // Set up WebSocket subscription for task updates
   useEffect(() => {
-    if (!taskId) return;
+    if (!taskId) {
+      // Clear any progress data and polling when task ID is cleared
+      setProgress(null);
+      if (pollingIntervalId) {
+        clearInterval(pollingIntervalId);
+        setPollingIntervalId(null);
+      }
+      return;
+    }
 
     // First fetch initial status
     fetchInitialStatus(taskId);
@@ -67,12 +113,23 @@ export function useTaskProgress() {
         const generalUnsubscribe = websocketManager.on('upload_progress', (data) => {
           if (data.task_id === taskId) {
             setProgress(data);
+
+            // Reset error state when we get a successful update
+            if (error) setError(null);
           }
         });
 
         // Subscribe to task-specific events
         const taskUnsubscribe = websocketManager.subscribeToTask(taskId, (data) => {
           setProgress(data);
+
+          // Check for error in the data
+          if (data.status === 'failed' && data.error) {
+            setError(data.error);
+          } else if (error) {
+            // Reset error state when we get a successful update
+            setError(null);
+          }
         });
 
         // Combine unsubscribe functions
@@ -96,7 +153,7 @@ export function useTaskProgress() {
       if (unsubscribe) unsubscribe();
       if (pollingInterval) clearInterval(pollingInterval);
     };
-  }, [taskId, fetchInitialStatus, startPolling]);
+  }, [taskId, fetchInitialStatus, startPolling, error]);
 
   // Cancel the task
   const cancelTask = useCallback(async () => {
@@ -125,12 +182,25 @@ export function useTaskProgress() {
     }
   }, [taskId]);
 
+  // Reset everything
+  const resetTask = useCallback(() => {
+    setTaskId(null);
+    setProgress(null);
+    setError(null);
+
+    if (pollingIntervalId) {
+      clearInterval(pollingIntervalId);
+      setPollingIntervalId(null);
+    }
+  }, [pollingIntervalId]);
+
   return {
     taskId,
     setTaskId,
     progress,
     error,
     cancelTask,
+    resetTask,
     isWebSocketConnected,
   };
 }

@@ -22,7 +22,13 @@ class WebSocketManager {
 
     return new Promise((resolve, reject) => {
       try {
-        this.clientId = clientId || this.clientId || uuidv4();
+        // Format client ID correctly - ensure it has client_ prefix
+        this.clientId = clientId || this.clientId || `client_${uuidv4().replace(/-/g, '')}`;
+
+        // If clientId doesn't start with client_, add it
+        if (!this.clientId.startsWith('client_')) {
+          this.clientId = `client_${this.clientId}`;
+        }
 
         // Use the proper WebSocket URL
         const host = process.env.NEXT_PUBLIC_WEBSOCKET_URL ||
@@ -40,6 +46,7 @@ class WebSocketManager {
           this.isConnected = true;
           this.reconnectAttempts = 0;
           this.pingInterval = setInterval(() => this.ping(), 30000);
+          this.emit('connected', { connected: true });
           resolve();
         };
 
@@ -50,6 +57,7 @@ class WebSocketManager {
         this.socket.onerror = (error) => {
           console.error('WebSocket error:', error);
           this.isConnected = false;
+          this.emit('disconnected', { connected: false, error });
           reject(error);
         };
 
@@ -57,6 +65,7 @@ class WebSocketManager {
       } catch (error) {
         console.error('WebSocket connection error:', error);
         this.isConnected = false;
+        this.emit('disconnected', { connected: false, error });
         reject(error);
       }
     });
@@ -66,11 +75,13 @@ class WebSocketManager {
     console.log('WebSocket closed:', event);
     this.isConnected = false;
     clearInterval(this.pingInterval);
+    this.emit('disconnected', { connected: false });
 
     // Attempt to reconnect
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       const delay = this.reconnectDelay * Math.pow(1.5, this.reconnectAttempts);
       this.reconnectAttempts++;
+      console.log(`Attempting to reconnect in ${delay}ms (attempt ${this.reconnectAttempts})`);
 
       setTimeout(async () => {
         try {
@@ -79,6 +90,8 @@ class WebSocketManager {
           console.error('Failed to reconnect WebSocket:', err);
         }
       }, delay);
+    } else {
+      console.error('Max reconnection attempts reached. WebSocket disconnected.');
     }
   }
 
@@ -86,6 +99,7 @@ class WebSocketManager {
   handleMessage(data) {
     try {
       const parsedData = JSON.parse(data);
+      console.log('Received WebSocket message:', parsedData);
 
       // Handle different message types based on OpenAPI spec
       if (parsedData.type === 'upload_progress') {
@@ -113,7 +127,7 @@ class WebSocketManager {
         this.emit('message', parsedData);
       }
     } catch (error) {
-      console.error('Error parsing WebSocket message:', error);
+      console.error('Error parsing WebSocket message:', error, data);
     }
   }
 
@@ -182,6 +196,12 @@ class WebSocketManager {
       this.socket = null;
       this.isConnected = false;
     }
+  }
+
+  // Force reconnection
+  reconnect() {
+    this.disconnect();
+    return this.connect();
   }
 
   // Subscribe to updates for a specific task

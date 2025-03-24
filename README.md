@@ -24,7 +24,6 @@ Create a `.env` file in the root directory with:
 
 ```bash
 NEXT_PUBLIC_API_URL=<your_backend_api_url>
-NEXT_PUBLIC_API_KEY=<your_api_key>
 ```
 
 First, run the development server:

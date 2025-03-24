@@ -6,14 +6,14 @@ import { ThemeProvider } from '@/components/context/ThemeContext';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata = {
-  title: 'Student AI Bot',
-  description: 'AI assistant for students',
+  title: 'Student AI Learning Assistant',
+  description: 'AI-powered learning assistant for students',
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
-      <body className={inter.className}>
+    <html lang="en" className={inter.className}>
+      <body>
         <ThemeProvider>
           <AuthProvider>
             {children}
