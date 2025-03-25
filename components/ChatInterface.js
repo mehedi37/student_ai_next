@@ -3,10 +3,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { api } from '@/utils/api';
 import { v4 as uuidv4 } from 'uuid';
-import websocketManager from '@/utils/websocket';
 import ChatMessage from './ChatMessage';
 import Link from 'next/link';
 import { Mic, MicOff, Send, Upload } from 'lucide-react';
+import { useWebSocket } from '@/app/contexts/WebSocketContext';
 
 export default function ChatInterface({ user, session, wsClientId }) {
   const [messages, setMessages] = useState([]);
@@ -16,6 +16,7 @@ export default function ChatInterface({ user, session, wsClientId }) {
   const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
+  const { isConnected, send } = useWebSocket();
 
   // Update session ID when prop changes
   useEffect(() => {
@@ -40,7 +41,7 @@ export default function ChatInterface({ user, session, wsClientId }) {
   useEffect(() => {
     if (!wsClientId) return;
 
-    const unsubscribe = websocketManager.on('message', (data) => {
+    const handleMessage = (data) => {
       if (data.type === 'chat_response' && data.session_id === sessionId) {
         // Handle incremental updates for streaming response
         if (data.is_partial) {
@@ -82,9 +83,23 @@ export default function ChatInterface({ user, session, wsClientId }) {
           });
         }
       }
+    };
+
+    // Subscribe to WebSocket messages
+    window.addEventListener('message', (event) => {
+      if (event.data && typeof event.data === 'string') {
+        try {
+          const data = JSON.parse(event.data);
+          handleMessage(data);
+        } catch (error) {
+          console.error('Error parsing WebSocket message:', error);
+        }
+      }
     });
 
-    return () => unsubscribe();
+    return () => {
+      window.removeEventListener('message', handleMessage);
+    };
   }, [wsClientId, sessionId]);
 
   const handleSubmit = async (e, speechInput = null) => {
@@ -107,12 +122,12 @@ export default function ChatInterface({ user, session, wsClientId }) {
 
     try {
       // Use WebSocket for sending if available
-      if (wsClientId && websocketManager.isConnected) {
+      if (wsClientId && isConnected) {
         // Generate a unique message ID for tracking this conversation
         const messageId = uuidv4();
 
         // Send message through WebSocket
-        await websocketManager.send({
+        send({
           type: 'chat_message',
           message_id: messageId,
           content: messageText,

@@ -158,9 +158,6 @@ export const api = {
   sessions: {
     list: (limit = 20) => fetchAPI(`/sessions/?limit=${limit}`),
     get: (sessionId) => fetchAPI(`/sessions/${sessionId}`),
-    create: () => fetchAPI('/sessions/', {
-      method: 'POST',
-    }),
     delete: (sessionId) => fetchAPI(`/sessions/${sessionId}`, {
       method: 'DELETE',
     }),
