@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/context/AuthContext';
-import { v4 as uuidv4 } from 'uuid';
 import ChatInterface from '@/components/ChatInterface';
 import Link from 'next/link';
 import ThemeSwitcher from '@/components/ThemeSwitcher';
@@ -14,22 +13,12 @@ export default function Dashboard() {
   const router = useRouter();
   const { user, isLoading, logout } = useAuth();
   const [activeSession, setActiveSession] = useState(null);
-  const [wsClientId, setWsClientId] = useState(null);
   const [sessions, setSessions] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [isLoadingSessions, setIsLoadingSessions] = useState(false);
   const [isLoadingDocs, setIsLoadingDocs] = useState(false);
   const [activeTab, setActiveTab] = useState('sessions');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-
-  // Set up client ID for WebSocket connection if logged in
-  useEffect(() => {
-    if (user && !wsClientId) {
-      const uuid = uuidv4().replace(/-/g, "");
-      const clientId = uuid.startsWith('client_') ? uuid : `client_${uuid}`;
-      setWsClientId(clientId);
-    }
-  }, [user, wsClientId]);
 
   // Load sessions and documents when the user is authenticated
   useEffect(() => {
@@ -54,10 +43,24 @@ export default function Dashboard() {
   const loadDocuments = async () => {
     setIsLoadingDocs(true);
     try {
+      console.log('Fetching user documents...');
       const response = await api.uploads.documents();
-      setDocuments(response.documents || []);
+      console.log('Documents response:', response);
+
+      if (response && Array.isArray(response)) {
+        // Handle case where API returns array directly
+        setDocuments(response);
+      } else if (response && Array.isArray(response.documents)) {
+        // Handle case where API returns {documents: [...]}
+        setDocuments(response.documents);
+      } else {
+        // Default to empty array if response format is unexpected
+        console.warn('Unexpected document response format:', response);
+        setDocuments([]);
+      }
     } catch (error) {
       console.error('Error loading documents:', error);
+      setDocuments([]); // Set empty array on error
     } finally {
       setIsLoadingDocs(false);
     }
@@ -150,11 +153,6 @@ export default function Dashboard() {
         <div className="p-4 lg:p-6 flex-1 flex flex-col">
           <div className="card bg-base-100 shadow-xl w-full max-w-4xl mx-auto h-[calc(100vh-120px)]">
             <div className="card-body p-4 flex flex-col overflow-hidden">
-              {/* <h2 className="card-title flex items-center gap-2 mb-4">
-                <MessageSquare className="w-5 h-5" />
-                AI Learning Assistant
-              </h2> */}
-
               {/* Custom scrollbar and markdown styles */}
               <style jsx global>{`
                 /* Custom scrollbar styles */
@@ -245,7 +243,6 @@ export default function Dashboard() {
                 <ChatInterface
                   user={user}
                   session={activeSession}
-                  wsClientId={wsClientId}
                 />
               </div>
             </div>

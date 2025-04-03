@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/components/context/AuthContext';
-import { v4 as uuidv4 } from 'uuid';
 import { api } from '@/utils/api';
 import ChatInterface from '@/components/ChatInterface';
 import ChatLayout from '@/components/ChatLayout';
@@ -14,18 +13,7 @@ export default function ChatPage({ params }) {
   const { user, isLoading } = useAuth();
   const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [wsClientId, setWsClientId] = useState(null);
   const { sessionId } = params;
-
-  // Set up client ID for WebSocket connection
-  useEffect(() => {
-    if (user && !wsClientId) {
-      // Ensure client ID has the required format
-      const uuid = uuidv4().replace(/-/g, "");
-      const clientId = uuid.startsWith('client_') ? uuid : `client_${uuid}`;
-      setWsClientId(clientId);
-    }
-  }, [user, wsClientId]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -97,7 +85,7 @@ export default function ChatPage({ params }) {
 
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
-            <ChatInterface activeSession={session} wsClientId={wsClientId} />
+            <ChatInterface user={user} session={session} />
           </div>
         </div>
       </div>

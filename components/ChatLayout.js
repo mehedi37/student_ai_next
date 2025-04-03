@@ -21,8 +21,10 @@ import {
   ChevronRight,
   Plus,
   RefreshCw,
-  X
+  X,
+  AlertCircle
 } from 'lucide-react';
+import ThemeSwitcher from '@/components/ThemeSwitcher';
 
 export default function ChatLayout({ children }) {
   const router = useRouter();
@@ -36,6 +38,7 @@ export default function ChatLayout({ children }) {
   const [collapsed, setCollapsed] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [notification, setNotification] = useState(null);
+  const [activeTasks, setActiveTasks] = useState([]);
 
   // Load the collapsed state from localStorage on component mount
   useEffect(() => {
@@ -80,7 +83,7 @@ export default function ChatLayout({ children }) {
     setLoadingDocuments(true);
     try {
       const response = await api.uploads.documents();
-      setDocuments(response.documents || []);
+      setDocuments(response || []);
     } catch (error) {
       console.error('Error loading documents:', error);
       setNotification({
@@ -159,6 +162,19 @@ export default function ChatLayout({ children }) {
     router.push('/auth');
   };
 
+  // Mock function to load active tasks - replace with real implementation
+  // In a real implementation, this would poll an API endpoint
+  useEffect(() => {
+    const storedTasks = localStorage.getItem('activeTasks');
+    if (storedTasks) {
+      try {
+        setActiveTasks(JSON.parse(storedTasks));
+      } catch (e) {
+        console.error('Error parsing stored tasks', e);
+      }
+    }
+  }, []);
+
   // Clear the notification after 5 seconds
   useEffect(() => {
     if (notification) {
@@ -178,7 +194,7 @@ export default function ChatLayout({ children }) {
   }
 
   return (
-    <div className="drawer">
+    <div className="drawer lg:drawer-open">
       <input
         id="my-drawer"
         type="checkbox"
@@ -222,6 +238,46 @@ export default function ChatLayout({ children }) {
                 <button className="btn btn-ghost btn-xs" onClick={() => setNotification(null)}>
                   <X className="h-4 w-4" />
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* Active Tasks Toast */}
+          {activeTasks.length > 0 && (
+            <div className="toast toast-bottom toast-end z-40">
+              <div className="bg-base-200 shadow-lg rounded-box overflow-hidden max-w-xs">
+                <div className="bg-primary text-primary-content px-4 py-2 flex justify-between items-center">
+                  <span className="font-medium flex items-center gap-2">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Active Tasks
+                  </span>
+                  <button className="btn btn-ghost btn-xs btn-circle">
+                    <X className="h-3 w-3" />
+                  </button>
+                </div>
+                <div className="p-2 max-h-60 overflow-y-auto">
+                  {activeTasks.map((task) => (
+                    <div key={task.id} className="p-2 mb-1 bg-base-100 rounded">
+                      <div className="text-sm font-medium">{task.title}</div>
+                      <div className="mt-1">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span>{task.progress}% Complete</span>
+                        </div>
+                        <div className="w-full bg-base-300 rounded-full h-1.5">
+                          <div
+                            className="bg-primary h-1.5 rounded-full"
+                            style={{ width: `${task.progress}%` }}
+                          ></div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-2 border-t border-base-300 flex justify-end">
+                  <Link href="/upload" className="btn btn-ghost btn-xs">
+                    View All
+                  </Link>
+                </div>
               </div>
             </div>
           )}
@@ -466,12 +522,12 @@ export default function ChatLayout({ children }) {
                 ) : documents.length > 0 ? (
                   <ul className="space-y-1">
                     {documents.map((doc) => {
-                      if (!doc || !doc.id) {
+                      if (!doc || !doc.document_id) {
                         // Skip invalid documents
                         return null;
                       }
                       return (
-                        <li key={doc.id}>
+                        <li key={doc.document_id}>
                           <button
                             className={`w-full text-left btn btn-ghost justify-start ${collapsed ? 'btn-sm px-0 justify-center' : ''}`}
                             onClick={() => {
@@ -484,7 +540,7 @@ export default function ChatLayout({ children }) {
                           >
                             <FileText className={`h-4 w-4 ${collapsed ? 'mx-auto' : 'mr-2'}`} />
                             {!collapsed && (
-                              <span className="truncate">{doc.title || doc.filename || 'Document'}</span>
+                              <span className="truncate">{doc.title || 'Document'}</span>
                             )}
                           </button>
                         </li>
@@ -540,27 +596,8 @@ export default function ChatLayout({ children }) {
       <dialog id="theme-modal" className="modal modal-bottom sm:modal-middle">
         <div className="modal-box">
           <h3 className="font-bold text-lg">Choose Theme</h3>
-          <div className="py-4 grid grid-cols-2 gap-2">
-            <button className="btn" onClick={() => {
-              document.documentElement.setAttribute('data-theme', 'light');
-              localStorage.setItem('theme', 'light');
-              document.getElementById('theme-modal').close();
-            }}>Light</button>
-            <button className="btn" onClick={() => {
-              document.documentElement.setAttribute('data-theme', 'dark');
-              localStorage.setItem('theme', 'dark');
-              document.getElementById('theme-modal').close();
-            }}>Dark</button>
-            <button className="btn" onClick={() => {
-              document.documentElement.setAttribute('data-theme', 'cupcake');
-              localStorage.setItem('theme', 'cupcake');
-              document.getElementById('theme-modal').close();
-            }}>Cupcake</button>
-            <button className="btn" onClick={() => {
-              document.documentElement.setAttribute('data-theme', 'synthwave');
-              localStorage.setItem('theme', 'synthwave');
-              document.getElementById('theme-modal').close();
-            }}>Synthwave</button>
+          <div className="py-4">
+            <ThemeSwitcher />
           </div>
           <div className="modal-action">
             <form method="dialog">

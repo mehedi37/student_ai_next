@@ -12,7 +12,7 @@
           "auth"
         ],
         "summary": "Register",
-        "description": "Register a new user.",
+        "description": "Register a new user.\n\nArgs:\n    request: Registration request\n\nReturns:\n    User data",
         "operationId": "register_api_auth_register_post",
         "requestBody": {
           "content": {
@@ -25,7 +25,7 @@
           "required": true
         },
         "responses": {
-          "200": {
+          "201": {
             "description": "Successful Response",
             "content": {
               "application/json": {
@@ -96,19 +96,19 @@
         }
       }
     },
-    "/api/auth/token": {
+    "/api/auth/login/oauth": {
       "post": {
         "tags": [
           "auth"
         ],
         "summary": "Login Oauth",
         "description": "Authenticate a user using OAuth2 password flow.\nThis endpoint is compatible with OpenAPI's OAuth2 password flow.\n\nArgs:\n    response: FastAPI response object for setting cookies\n    form_data: OAuth2 form data\n\nReturns:\n    Access token",
-        "operationId": "login_oauth_api_auth_token_post",
+        "operationId": "login_oauth_api_auth_login_oauth_post",
         "requestBody": {
           "content": {
             "application/x-www-form-urlencoded": {
               "schema": {
-                "$ref": "#/components/schemas/Body_login_oauth_api_auth_token_post"
+                "$ref": "#/components/schemas/Body_login_oauth_api_auth_login_oauth_post"
               }
             }
           },
@@ -149,29 +149,6 @@
         "summary": "Logout",
         "description": "Log out a user by invalidating their session.\n\nArgs:\n    response: FastAPI response object for clearing cookies\n    current_user: Current authenticated user\n\nReturns:\n    Success message",
         "operationId": "logout_api_auth_logout_post",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -185,18 +162,13 @@
           },
           "401": {
             "description": "Unauthorized"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
-        }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/api/auth/token/refresh": {
@@ -207,29 +179,6 @@
         "summary": "Refresh Token",
         "description": "Refresh an access token.\n\nArgs:\n    response: FastAPI response object for setting cookies\n    current_user: Current authenticated user\n\nReturns:\n    New access token",
         "operationId": "refresh_token_api_auth_token_refresh_post",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -243,18 +192,13 @@
           },
           "401": {
             "description": "Unauthorized"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
-        }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/api/auth/user/me": {
@@ -265,29 +209,6 @@
         "summary": "Get User Profile",
         "description": "Get the current user's profile.\n\nArgs:\n    current_user: Current authenticated user\n\nReturns:\n    User profile data",
         "operationId": "get_user_profile_api_auth_user_me_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -301,18 +222,13 @@
           },
           "401": {
             "description": "Unauthorized"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
-        }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/api/uploads/file": {
@@ -321,49 +237,17 @@
           "uploads"
         ],
         "summary": "Upload File",
-        "description": "Upload and process a file (PDF, text, DOCX, or image).\n\nArgs:\n    background_tasks: FastAPI background tasks\n    file: The file to upload\n    current_user: The authenticated user\n    client_id: Optional client ID for WebSocket notifications\n\nReturns:\n    Processing status and document ID",
+        "description": "Upload and process a file (PDF, text, DOCX, or image).\n\nArgs:\n    background_tasks: FastAPI background tasks\n    file: The file to upload\n    current_user: The authenticated user\n\nReturns:\n    Processing status and document ID",
         "operationId": "upload_file_api_uploads_file_post",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "client_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "title": "Client Id"
-            }
-          },
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
-          }
-        ],
         "requestBody": {
-          "required": true,
           "content": {
             "multipart/form-data": {
               "schema": {
                 "$ref": "#/components/schemas/Body_upload_file_api_uploads_file_post"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "201": {
@@ -389,7 +273,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/api/uploads/status/{task_id}": {
@@ -413,22 +302,6 @@
             "schema": {
               "type": "string",
               "title": "Task Id"
-            }
-          },
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
             }
           }
         ],
@@ -465,49 +338,17 @@
           "uploads"
         ],
         "summary": "Upload Youtube",
-        "description": "Process a YouTube video link.\n\nArgs:\n    background_tasks: FastAPI background tasks\n    request: The YouTube upload request\n    current_user: The authenticated user\n    client_id: Optional client ID for WebSocket notifications\n\nReturns:\n    Processing status and document ID",
+        "description": "Process a YouTube video link.\n\nArgs:\n    background_tasks: FastAPI background tasks\n    request: The YouTube upload request\n    current_user: The authenticated user\n\nReturns:\n    Processing status and document ID",
         "operationId": "upload_youtube_api_uploads_youtube_post",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "client_id",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "title": "Client Id"
-            }
-          },
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
-          }
-        ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/YouTubeUploadRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "201": {
@@ -533,7 +374,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/api/uploads/documents": {
@@ -544,39 +390,16 @@
         "summary": "Get User Documents",
         "description": "Get a list of documents uploaded by the current user.\n\nArgs:\n    current_user: The authenticated user\n\nReturns:\n    List of user documents",
         "operationId": "get_user_documents_api_uploads_documents_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/UserDocumentResponse"
                   },
+                  "type": "array",
                   "title": "Response Get User Documents Api Uploads Documents Get"
                 }
               }
@@ -584,18 +407,13 @@
           },
           "401": {
             "description": "Unauthorized"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
-        }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/api/uploads/task/{task_id}": {
@@ -620,22 +438,6 @@
               "type": "string",
               "title": "Task Id"
             }
-          },
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
           }
         ],
         "responses": {
@@ -645,6 +447,7 @@
               "application/json": {
                 "schema": {
                   "type": "object",
+                  "additionalProperties": true,
                   "title": "Response Terminate Task Api Uploads Task  Task Id  Delete"
                 }
               }
@@ -691,22 +494,6 @@
               "default": 20,
               "title": "Limit"
             }
-          },
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
           }
         ],
         "responses": {
@@ -747,47 +534,17 @@
             "OAuth2PasswordBearer": []
           }
         ],
-        "parameters": [
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-
-                }
+                "schema": {}
               }
             }
           },
           "401": {
             "description": "Unauthorized"
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
           }
         }
       }
@@ -813,22 +570,6 @@
             "schema": {
               "type": "string",
               "title": "Session Id"
-            }
-          },
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
             }
           }
         ],
@@ -879,22 +620,6 @@
               "type": "string",
               "title": "Session Id"
             }
-          },
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
           }
         ],
         "responses": {
@@ -902,9 +627,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-
-                }
+                "schema": {}
               }
             }
           },
@@ -924,45 +647,30 @@
         }
       }
     },
-    "/api/diagnostics/environment": {
-      "get": {
+    "/api/diagnostics/semantic/analyze": {
+      "post": {
         "tags": [
           "diagnostics"
         ],
-        "summary": "Get Environment Info",
-        "description": "Get information about the runtime environment.",
-        "operationId": "get_environment_info_api_diagnostics_environment_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
+        "summary": "Analyze Semantic Query",
+        "description": "Analyze a query using the semantic tools.\nReturns detailed analysis of prompt matching and entity extraction.",
+        "operationId": "analyze_semantic_query_api_diagnostics_semantic_analyze_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SemanticTestRequest"
+              }
             }
-          }
-        ],
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-
-                }
+                "schema": {}
               }
             }
           },
@@ -976,48 +684,38 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
-    "/api/diagnostics/database": {
-      "get": {
+    "/api/diagnostics/semantic/batch-analyze": {
+      "post": {
         "tags": [
           "diagnostics"
         ],
-        "summary": "Check Database Tables",
-        "description": "Check database tables and return schema info.\nRequires admin privileges.",
-        "operationId": "check_database_tables_api_diagnostics_database_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
+        "summary": "Batch Analyze Semantic Queries",
+        "description": "Run batch analysis on multiple queries.\nEvaluates semantic matching performance against expected results.",
+        "operationId": "batch_analyze_semantic_queries_api_diagnostics_semantic_batch_analyze_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BatchSemanticTestRequest"
+              }
             }
-          }
-        ],
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-
-                }
+                "schema": {}
               }
             }
           },
@@ -1031,139 +729,137 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
-    "/api/diagnostics/test-embedding": {
+    "/api/diagnostics/semantic/models": {
       "get": {
         "tags": [
           "diagnostics"
         ],
-        "summary": "Test Embedding Generation",
-        "description": "Test embedding generation on a sample text.",
-        "operationId": "test_embedding_generation_api_diagnostics_test_embedding_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "text",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "This is a test sentence for embedding generation",
-              "title": "Text"
-            }
-          },
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
-          }
-        ],
+        "summary": "Get Semantic Models Status",
+        "description": "Get the current status of semantic analysis models.",
+        "operationId": "get_semantic_models_status_api_diagnostics_semantic_models_get",
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": {}
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
-    "/api/diagnostics/logs": {
-      "get": {
+    "/api/diagnostics/semantic/clear-caches": {
+      "post": {
         "tags": [
           "diagnostics"
         ],
-        "summary": "Get Recent Logs",
-        "description": "Get recent log entries.\nRequires admin privileges.",
-        "operationId": "get_recent_logs_api_diagnostics_logs_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "lines",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "integer",
-              "maximum": 1000,
-              "exclusiveMinimum": 0,
-              "default": 50,
-              "title": "Lines"
-            }
-          },
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
-          }
-        ],
+        "summary": "Clear Semantic Caches",
+        "description": "Clear all semantic caches to free memory.",
+        "operationId": "clear_semantic_caches_api_diagnostics_semantic_clear_caches_post",
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": {}
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/diagnostics/gpu/memory": {
+      "get": {
+        "tags": [
+          "diagnostics"
+        ],
+        "summary": "Get Gpu Memory",
+        "description": "Get current GPU memory usage.",
+        "operationId": "get_gpu_memory_api_diagnostics_gpu_memory_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/diagnostics/embeddings/optimal-batches": {
+      "get": {
+        "tags": [
+          "diagnostics"
+        ],
+        "summary": "Get Optimal Batch Sizes Endpoint",
+        "description": "Get optimal batch sizes for embedding models.",
+        "operationId": "get_optimal_batch_sizes_endpoint_api_diagnostics_embeddings_optimal_batches_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/diagnostics/performance/benchmark": {
+      "post": {
+        "tags": [
+          "diagnostics"
+        ],
+        "summary": "Run Performance Benchmark",
+        "description": "Run a performance benchmark on key system components.",
+        "operationId": "run_performance_benchmark_api_diagnostics_performance_benchmark_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/api/system/status": {
@@ -1172,182 +868,33 @@
           "system"
         ],
         "summary": "Get System Status",
-        "description": "Get detailed system status information.\nRequires admin privileges.",
+        "description": "Get current system status information.\nLimited to admin users.\n\nReturns:\n    Dictionary with system status information",
         "operationId": "get_system_status_api_system_status_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": {}
               }
             }
           }
-        }
-      }
-    },
-    "/api/system/clear-cache": {
-      "post": {
-        "tags": [
-          "system"
-        ],
-        "summary": "Clear System Cache",
-        "description": "Clear system caches to free up memory.\nRequires admin privileges.",
-        "operationId": "clear_system_cache_api_system_clear_cache_post",
+        },
         "security": [
           {
             "OAuth2PasswordBearer": []
           }
-        ],
-        "parameters": [
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
+        ]
       }
     },
-    "/api/system/clear-model/{model_type}": {
-      "post": {
-        "tags": [
-          "system"
-        ],
-        "summary": "Clear Specific Model",
-        "description": "Clear a specific model from memory.\nRequires admin privileges.",
-        "operationId": "clear_specific_model_api_system_clear_model__model_type__post",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "model_type",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Model Type"
-            }
-          },
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/system/memory-history": {
+    "/api/system/alerts": {
       "get": {
         "tags": [
           "system"
         ],
-        "summary": "Get Memory History",
-        "description": "Get historical memory usage data.\nRequires admin privileges.",
-        "operationId": "get_memory_history_api_system_memory_history_get",
+        "summary": "Get Memory Alerts",
+        "description": "Get recent memory alerts.\nLimited to admin users.\n\nArgs:\n    count: Maximum number of alerts to return\n    level: Filter by alert level\n\nReturns:\n    List of memory alerts",
+        "operationId": "get_memory_alerts_api_system_alerts_get",
         "security": [
           {
             "OAuth2PasswordBearer": []
@@ -1355,19 +902,32 @@
         ],
         "parameters": [
           {
-            "name": "session_token",
-            "in": "cookie",
+            "name": "count",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "default": 10,
+              "title": "Count"
+            }
+          },
+          {
+            "name": "level",
+            "in": "query",
             "required": false,
             "schema": {
               "anyOf": [
                 {
-                  "type": "string"
+                  "type": "string",
+                  "pattern": "^(warning|critical)$"
                 },
                 {
                   "type": "null"
                 }
               ],
-              "title": "Session Token"
+              "title": "Level"
             }
           }
         ],
@@ -1376,9 +936,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-
-                }
+                "schema": {}
               }
             }
           },
@@ -1395,55 +953,30 @@
         }
       }
     },
-    "/api/system/optimize": {
+    "/api/system/action": {
       "post": {
         "tags": [
           "system"
         ],
-        "summary": "Optimize System Resources",
-        "description": "Optimize system resources with intelligent resource management.\n\nArgs:\n    background_tasks: FastAPI background tasks\n    aggressive: If True, performs more aggressive optimization\n    current_user: The authenticated admin user\n\nReturns:\n    Status of the optimization request",
-        "operationId": "optimize_system_resources_api_system_optimize_post",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "aggressive",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "boolean",
-              "default": false,
-              "title": "Aggressive"
+        "summary": "Perform System Action",
+        "description": "Perform a system action like cleanup or reset.\nLimited to admin users.\n\nArgs:\n    action: Action to perform\n    background_tasks: FastAPI background tasks\n    current_user: Current user (must be admin)\n\nReturns:\n    Action result",
+        "operationId": "perform_system_action_api_system_action_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SystemAction"
+              }
             }
           },
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
-          }
-        ],
+          "required": true
+        },
         "responses": {
           "200": {
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-
-                }
+                "schema": {}
               }
             }
           },
@@ -1457,46 +990,53 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/system/performance/metrics": {
+      "get": {
+        "tags": [
+          "system"
+        ],
+        "summary": "Get Performance Metrics",
+        "description": "Get performance metrics for the application.\nLimited to admin users.\n\nReturns:\n    Dictionary with performance metrics",
+        "operationId": "get_performance_metrics_api_system_performance_metrics_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/api/chat": {
       "post": {
         "summary": "Chat Endpoint",
-        "description": "Process a chat request and return a response.",
+        "description": "Process a chat request and return a response.\nUser identity is automatically extracted from the token.",
         "operationId": "chat_endpoint_api_chat_post",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
-          }
-        ],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ChatRequest"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "200": {
@@ -1519,7 +1059,12 @@
               }
             }
           }
-        }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
       }
     },
     "/api/health": {
@@ -1541,110 +1086,6 @@
         }
       }
     },
-    "/api/user/session": {
-      "get": {
-        "summary": "Get Session Data",
-        "description": "Get the current user's session data.\nThis endpoint requires valid authentication.\n\nArgs:\n    request: The request object for accessing cookies\n    current_user: The authenticated user\n\nReturns:\n    Session data including user information",
-        "operationId": "get_session_data_api_user_session_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/embeddings/status": {
-      "get": {
-        "summary": "Embedding Status",
-        "description": "Get the status of the embedding service.\n\nReturns:\n    Information about the embedding service configuration and available models",
-        "operationId": "embedding_status_api_embeddings_status_get",
-        "security": [
-          {
-            "OAuth2PasswordBearer": []
-          }
-        ],
-        "parameters": [
-          {
-            "name": "session_token",
-            "in": "cookie",
-            "required": false,
-            "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Session Token"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/": {
       "get": {
         "summary": "Root",
@@ -1655,19 +1096,119 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-
-                }
+                "schema": {}
               }
             }
           }
         }
       }
+    },
+    "/api/user/session": {
+      "get": {
+        "summary": "Get Session Data",
+        "description": "Get the current user's session data.\nThis endpoint requires valid authentication.\n\nArgs:\n    request: The request object for accessing cookies\n    current_user: The authenticated user\n\nReturns:\n    Session data including user information",
+        "operationId": "get_session_data_api_user_session_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
+    },
+    "/api/embeddings/status": {
+      "get": {
+        "summary": "Embedding Status",
+        "description": "Get the status of the embedding service.\n\nReturns:\n    Information about the embedding service configuration and available models",
+        "operationId": "embedding_status_api_embeddings_status_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ]
+      }
     }
   },
   "components": {
     "schemas": {
-      "Body_login_oauth_api_auth_token_post": {
+      "BatchSemanticTestRequest": {
+        "properties": {
+          "queries": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Queries"
+          },
+          "expected_types": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Types"
+          },
+          "expected_entities": {
+            "anyOf": [
+              {
+                "items": {
+                  "additionalProperties": true,
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expected Entities"
+          },
+          "test_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Test Name",
+            "default": "semantic_batch_test"
+          }
+        },
+        "type": "object",
+        "required": [
+          "queries"
+        ],
+        "title": "BatchSemanticTestRequest",
+        "description": "Request for batch testing of semantic analysis."
+      },
+      "Body_login_oauth_api_auth_login_oauth_post": {
         "properties": {
           "grant_type": {
             "anyOf": [
@@ -1722,7 +1263,7 @@
           "username",
           "password"
         ],
-        "title": "Body_login_oauth_api_auth_token_post"
+        "title": "Body_login_oauth_api_auth_login_oauth_post"
       },
       "Body_upload_file_api_uploads_file_post": {
         "properties": {
@@ -1799,6 +1340,7 @@
           "metadata": {
             "anyOf": [
               {
+                "additionalProperties": true,
                 "type": "object"
               },
               {
@@ -1999,17 +1541,6 @@
             "type": "string",
             "format": "date-time",
             "title": "Last Updated"
-          },
-          "metadata": {
-            "anyOf": [
-              {
-                "type": "object"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Metadata"
           }
         },
         "type": "object",
@@ -2049,6 +1580,20 @@
         ],
         "title": "RegisterRequest",
         "description": "Registration request model."
+      },
+      "SemanticTestRequest": {
+        "properties": {
+          "query": {
+            "type": "string",
+            "title": "Query"
+          }
+        },
+        "type": "object",
+        "required": [
+          "query"
+        ],
+        "title": "SemanticTestRequest",
+        "description": "Request for testing semantic analysis on a query."
       },
       "SessionListResponse": {
         "properties": {
@@ -2143,6 +1688,7 @@
             "anyOf": [
               {
                 "items": {
+                  "additionalProperties": true,
                   "type": "object"
                 },
                 "type": "array"
@@ -2165,6 +1711,32 @@
         ],
         "title": "SessionResponse",
         "description": "Pydantic model for detailed session information."
+      },
+      "SystemAction": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "parameters": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parameters"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action"
+        ],
+        "title": "SystemAction",
+        "description": "Request model for system actions."
       },
       "Token": {
         "properties": {
@@ -2309,26 +1881,8 @@
             "title": "Document Id"
           },
           "video_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "type": "string",
             "title": "Video Id"
-          },
-          "playlist_id": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Playlist Id"
           },
           "title": {
             "type": "string",
@@ -2343,52 +1897,38 @@
             "title": "Status"
           },
           "message": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Message"
           },
           "task_id": {
-            "type": "string",
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "title": "Task Id"
-          },
-          "is_playlist": {
-            "type": "boolean",
-            "title": "Is Playlist",
-            "default": false
-          },
-          "video_count": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Video Count"
-          },
-          "videos_processed": {
-            "anyOf": [
-              {
-                "type": "integer"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Videos Processed"
           }
         },
         "type": "object",
         "required": [
           "document_id",
+          "video_id",
           "title",
           "chunks_processed",
-          "status",
-          "message",
-          "task_id"
+          "status"
         ],
         "title": "YouTubeUploadResponse",
-        "description": "Response from YouTube upload endpoint."
+        "description": "Pydantic model for YouTube video upload response."
       }
     },
     "securitySchemes": {
@@ -2396,10 +1936,8 @@
         "type": "oauth2",
         "flows": {
           "password": {
-            "scopes": {
-
-            },
-            "tokenUrl": "api/auth/token"
+            "scopes": {},
+            "tokenUrl": "/api/auth/login/oauth"
           }
         }
       }

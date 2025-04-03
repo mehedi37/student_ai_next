@@ -7,7 +7,7 @@ export default function ThemeSwitcher({ showText = true }) {
   const { theme, setTheme, themes } = useTheme();
 
   // Group themes into categories
-  const popularThemes = ['light', 'dark', 'cupcake', 'corporate', 'synthwave', 'retro', 'cyberpunk'];
+  const popularThemes = ['light', 'dark', 'dracula', 'coffee', 'bumblebee', 'pastel', 'valentine', 'cyberpunk'];
   const otherThemes = themes.filter(t => !popularThemes.includes(t));
 
   return (

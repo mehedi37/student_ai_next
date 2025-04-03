@@ -1,136 +1,123 @@
-import { useState, useEffect, useCallback } from 'react';
+'use client';
+
+import { useState, useEffect, useRef } from 'react';
 import { api } from '@/utils/api';
-import websocketManager from '@/utils/websocket';
 
 /**
- * Custom hook to track task progress via WebSocket and API
+ * Hook to track upload task progress using REST polling
  */
-export function useTaskProgress() {
-  const [taskId, setTaskId] = useState(null);
-  const [progress, setProgress] = useState(null);
+export default function useTaskProgress(taskId) {
+  const [progress, setProgress] = useState(0);
+  const [status, setStatus] = useState('processing');
   const [error, setError] = useState(null);
-  const [isWebSocketConnected, setIsWebSocketConnected] = useState(false);
+  const [message, setMessage] = useState('');
+  const [isPolling, setIsPolling] = useState(false);
+  const pollingRef = useRef(null);
 
-  // Initial fetch of task status
-  const fetchInitialStatus = useCallback(async (id) => {
-    if (!id) return;
-
-    try {
-      const status = await api.uploads.status(id);
-      setProgress(status);
-      return status;
-    } catch (err) {
-      setError(err.message || 'Failed to fetch task status');
-      console.error('Error fetching task status:', err);
-      return null;
-    }
-  }, []);
-
-  // Polling fallback for when WebSocket is not available
-  const startPolling = useCallback((id, interval = 3000) => {
-    if (!id) return null;
-
-    console.log(`Starting polling for task ${id}`);
-    const intervalId = setInterval(async () => {
-      const status = await fetchInitialStatus(id);
-
-      // Stop polling if task is completed, failed or cancelled
-      if (status && ['completed', 'failed', 'cancelled'].includes(status.status)) {
-        clearInterval(intervalId);
-      }
-    }, interval);
-
-    return intervalId;
-  }, [fetchInitialStatus]);
-
-  // Set up WebSocket subscription for task updates
   useEffect(() => {
     if (!taskId) return;
 
-    // First fetch initial status
-    fetchInitialStatus(taskId);
+    // Clear any existing polling interval
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+    }
 
-    // Then subscribe to updates
-    let unsubscribe;
-    let pollingInterval = null;
+    setIsPolling(true);
 
-    const setupWebSocket = async () => {
+    // Define the polling function
+    const pollTaskStatus = async () => {
       try {
-        // Connect WebSocket if not already connected
-        if (!websocketManager.isConnected) {
-          await websocketManager.connect();
+        const response = await api.uploads.status(taskId);
+
+        console.log('Polling task status:', response);
+
+        // Update state with task progress
+        if (response.percentage !== undefined) {
+          setProgress(response.percentage);
+        } else if (response.current && response.total) {
+          const percentage = Math.floor((response.current / response.total) * 100);
+          setProgress(percentage);
         }
 
-        setIsWebSocketConnected(true);
+        // Update status and message
+        if (response.status) {
+          setStatus(response.status);
+        }
 
-        // Subscribe to general upload progress events
-        const generalUnsubscribe = websocketManager.on('upload_progress', (data) => {
-          if (data.task_id === taskId) {
-            setProgress(data);
-          }
-        });
+        if (response.message) {
+          setMessage(response.message);
+        }
 
-        // Subscribe to task-specific events
-        const taskUnsubscribe = websocketManager.subscribeToTask(taskId, (data) => {
-          setProgress(data);
-        });
+        if (response.error) {
+          setError(response.error);
+        }
 
-        // Combine unsubscribe functions
-        unsubscribe = () => {
-          generalUnsubscribe();
-          taskUnsubscribe();
-        };
-      } catch (err) {
-        console.error('WebSocket connection failed:', err);
-        setIsWebSocketConnected(false);
-        setError('WebSocket connection failed. Falling back to polling for updates.');
-
-        // Start polling as fallback
-        pollingInterval = startPolling(taskId);
+        // Stop polling if task is complete or failed
+        if (['completed', 'error', 'failed', 'cancelled'].includes(response.status)) {
+          clearInterval(pollingRef.current);
+          setIsPolling(false);
+        }
+      } catch (error) {
+        console.error('Error polling task status:', error);
+        setError('Failed to get task status');
+        clearInterval(pollingRef.current);
+        setIsPolling(false);
       }
     };
 
-    setupWebSocket();
+    // Poll immediately once
+    pollTaskStatus();
 
+    // Then set up interval for continued polling
+    pollingRef.current = setInterval(pollTaskStatus, 1000);
+
+    // Clean up on unmount
     return () => {
-      if (unsubscribe) unsubscribe();
-      if (pollingInterval) clearInterval(pollingInterval);
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+        setIsPolling(false);
+      }
     };
-  }, [taskId, fetchInitialStatus, startPolling]);
-
-  // Cancel the task
-  const cancelTask = useCallback(async () => {
-    if (!taskId) {
-      setError('No task to cancel');
-      return false;
-    }
-
-    try {
-      const response = await api.uploads.terminateTask(taskId);
-
-      // Update the progress state to show cancellation
-      setProgress(prev => ({
-        ...prev,
-        status: 'cancelled',
-        message: 'Task cancelled by user',
-        percentage: prev?.percentage || 0,
-      }));
-
-      console.log('Task cancelled successfully:', response);
-      return true;
-    } catch (err) {
-      setError(err.message || 'Failed to cancel task');
-      console.error('Error cancelling task:', err);
-      return false;
-    }
   }, [taskId]);
 
+  const cancelTask = async () => {
+    if (!taskId) return;
+
+    try {
+      // Stop polling while cancellation is in progress
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+
+      // Call the cancel API
+      const result = await api.uploads.terminateTask(taskId);
+
+      // Update status to cancelled
+      setStatus('cancelled');
+      setMessage('Task cancelled by user');
+      setIsPolling(false);
+
+      return result;
+    } catch (error) {
+      console.error('Failed to cancel task:', error);
+      setError('Failed to cancel task');
+
+      // Resume polling to see the current state
+      if (!isPolling && status === 'processing') {
+        pollingRef.current = setInterval(pollTaskStatus, 1000);
+        setIsPolling(true);
+      }
+
+      throw error;
+    }
+  };
+
   return {
-    taskId,
-    setTaskId,
     progress,
+    status,
     error,
+    message,
+    isPolling,
     cancelTask,
-    isWebSocketConnected,
   };
 }

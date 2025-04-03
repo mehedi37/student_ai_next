@@ -67,6 +67,13 @@ export const api = {
       method: 'POST',
     }),
     getProfile: () => fetchAPI('/auth/user/me'),
+    loginOAuth: (formData) => fetchAPI('/auth/login/oauth', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: new URLSearchParams(formData),
+    }),
   },
 
   // Chat endpoint
@@ -79,79 +86,23 @@ export const api = {
 
   // Upload endpoints
   uploads: {
-    file: (fileData, clientId = null) => {
-      if (!clientId) {
-        console.warn('No client_id provided for file upload, this may cause issues');
-      }
+    file: (fileData) => fetchAPI('/uploads/file', {
+      method: 'POST',
+      body: fileData,
+    }),
 
-      let formData;
-      // Handle different input types
-      if (fileData instanceof FormData) {
-        // If already a FormData, use it directly
-        formData = fileData;
-      } else {
-        // Otherwise create a new FormData and append the file
-        formData = new FormData();
-        formData.append('file', fileData);
-      }
-
-      const endpoint = `/uploads/file${clientId ? `?client_id=${encodeURIComponent(clientId)}` : ''}`;
-
-      return fetchAPI(endpoint, {
-        method: 'POST',
-        body: formData,
-        // Don't set Content-Type header, browser will set it with boundary
-      });
-    },
-
-    youtube: (urlData, clientId = null) => {
-      const endpoint = `/uploads/youtube${clientId ? `?client_id=${encodeURIComponent(clientId)}` : ''}`;
-
-      // Format the request body according to the YouTubeUploadRequest schema
-      let normalizedUrl = urlData;
-      if (typeof urlData === 'string') {
-        // Normalize YouTube URLs
-        if (urlData.includes('youtu.be/')) {
-          // Convert youtu.be format to full URL
-          const videoId = urlData.split('youtu.be/')[1].split('?')[0];
-          normalizedUrl = `https://www.youtube.com/watch?v=${videoId}`;
-        }
-
-        const requestBody = { url: normalizedUrl };
-        return fetchAPI(endpoint, {
-          method: 'POST',
-          body: JSON.stringify(requestBody),
-        });
-      }
-
-      // Handle if urlData is already an object
-      return fetchAPI(endpoint, {
-        method: 'POST',
-        body: JSON.stringify(urlData),
-      });
-    },
+    youtube: (urlData) => fetchAPI('/uploads/youtube', {
+      method: 'POST',
+      body: JSON.stringify(urlData),
+    }),
 
     status: (taskId) => fetchAPI(`/uploads/status/${taskId}`),
-    documents: () => fetchAPI('/uploads/documents'),
-    terminateTask: (taskId) => {
-      if (!taskId) {
-        return Promise.reject(new Error('No task ID provided'));
-      }
 
-      return fetchAPI(`/uploads/task/${taskId}`, {
-        method: 'DELETE',
-      }).then(response => {
-        // Return a standardized response
-        return {
-          success: true,
-          message: response.message || 'Task terminated successfully',
-          ...response
-        };
-      }).catch(error => {
-        console.error('Error terminating task:', error);
-        throw error;
-      });
-    },
+    documents: () => fetchAPI('/uploads/documents'),
+
+    terminateTask: (taskId) => fetchAPI(`/uploads/task/${taskId}`, {
+      method: 'DELETE',
+    }),
   },
 
   // Sessions endpoints
@@ -168,4 +119,60 @@ export const api = {
 
   // Health check
   health: () => fetchAPI('/health'),
+
+  // User session data
+  user: {
+    getSessionData: () => fetchAPI('/user/session'),
+  },
+
+  // System endpoints (admin only)
+  system: {
+    getStatus: () => fetchAPI('/system/status'),
+    getAlerts: (count = 10, level = null) => {
+      const params = new URLSearchParams({ count });
+      if (level) params.append('level', level);
+      return fetchAPI(`/system/alerts?${params}`);
+    },
+    performAction: (action, parameters = null) => {
+      return fetchAPI('/system/action', {
+        method: 'POST',
+        body: JSON.stringify({ action, parameters }),
+      });
+    },
+    getPerformanceMetrics: () => fetchAPI('/system/performance/metrics'),
+  },
+
+  // Diagnostic endpoints (admin/debugging)
+  diagnostics: {
+    semantic: {
+      analyze: (query) => fetchAPI('/diagnostics/semantic/analyze', {
+        method: 'POST',
+        body: JSON.stringify({ query }),
+      }),
+      batchAnalyze: (data) => fetchAPI('/diagnostics/semantic/batch-analyze', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+      getModelsStatus: () => fetchAPI('/diagnostics/semantic/models'),
+      clearCaches: () => fetchAPI('/diagnostics/semantic/clear-caches', {
+        method: 'POST',
+      }),
+    },
+    gpu: {
+      getMemory: () => fetchAPI('/diagnostics/gpu/memory'),
+    },
+    embeddings: {
+      getOptimalBatches: () => fetchAPI('/diagnostics/embeddings/optimal-batches'),
+    },
+    performance: {
+      runBenchmark: () => fetchAPI('/diagnostics/performance/benchmark', {
+        method: 'POST',
+      }),
+    },
+  },
+
+  // Embedding service
+  embeddings: {
+    getStatus: () => fetchAPI('/embeddings/status'),
+  },
 };

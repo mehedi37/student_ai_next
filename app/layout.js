@@ -2,7 +2,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { AuthProvider } from '@/components/context/AuthContext';
 import { ThemeProvider } from '@/components/context/ThemeContext';
-import { WebSocketProvider } from './contexts/WebSocketContext';
+import { TaskProgressProvider } from '@/app/components/TaskProgressManager';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -16,11 +16,11 @@ export default function RootLayout({ children }) {
     <html lang="en" className={inter.className}>
       <body>
         <ThemeProvider>
-          <WebSocketProvider>
-            <AuthProvider>
+          <AuthProvider>
+            <TaskProgressProvider>
               {children}
-            </AuthProvider>
-          </WebSocketProvider>
+            </TaskProgressProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

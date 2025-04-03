@@ -9,7 +9,7 @@ const ThemeContext = createContext({
 });
 
 export function ThemeProvider({ children }) {
-  const [theme, setTheme] = useState('dark');
+  const [theme, setTheme] = useState('dracula');
   const [isClient, setIsClient] = useState(false);
 
   // These are the themes available in DaisyUI
@@ -33,7 +33,7 @@ export function ThemeProvider({ children }) {
       setTheme(savedTheme);
     } else {
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      const defaultTheme = prefersDark ? 'dark' : 'light';
+      const defaultTheme = prefersDark ? 'dracula' : 'pastel';
       setTheme(defaultTheme);
       localStorage.setItem('theme', defaultTheme);
     }

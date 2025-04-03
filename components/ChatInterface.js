@@ -6,9 +6,8 @@ import { v4 as uuidv4 } from 'uuid';
 import ChatMessage from './ChatMessage';
 import Link from 'next/link';
 import { Mic, MicOff, Send, Upload } from 'lucide-react';
-import { useWebSocket } from '@/app/contexts/WebSocketContext';
 
-export default function ChatInterface({ user, session, wsClientId }) {
+export default function ChatInterface({ user, session }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -16,7 +15,6 @@ export default function ChatInterface({ user, session, wsClientId }) {
   const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
-  const { isConnected, send } = useWebSocket();
 
   // Update session ID when prop changes
   useEffect(() => {
@@ -37,71 +35,6 @@ export default function ChatInterface({ user, session, wsClientId }) {
     scrollToBottom();
   }, [messages]);
 
-  // Setup WebSocket listener for streaming responses
-  useEffect(() => {
-    if (!wsClientId) return;
-
-    const handleMessage = (data) => {
-      if (data.type === 'chat_response' && data.session_id === sessionId) {
-        // Handle incremental updates for streaming response
-        if (data.is_partial) {
-          setMessages(prev => {
-            const lastMessage = prev[prev.length - 1];
-
-            // If the last message is already from the bot, update it
-            if (lastMessage && lastMessage.sender === 'bot') {
-              const updatedMessages = [...prev];
-              updatedMessages[updatedMessages.length - 1] = {
-                ...lastMessage,
-                content: lastMessage.content + data.content
-              };
-              return updatedMessages;
-            } else {
-              // Otherwise add a new bot message
-              return [...prev, {
-                id: data.message_id || uuidv4(),
-                content: data.content,
-                sender: 'bot',
-                timestamp: new Date().toISOString()
-              }];
-            }
-          });
-        } else {
-          // Handle final message
-          setMessages(prev => {
-            // Remove any partial message from this response
-            const filteredMessages = data.message_id ?
-              prev.filter(m => m.id !== data.message_id) : prev;
-
-            return [...filteredMessages, {
-              id: data.message_id || uuidv4(),
-              content: data.content,
-              sender: 'bot',
-              timestamp: new Date().toISOString(),
-              metadata: data.metadata
-            }];
-          });
-        }
-      }
-    };
-
-    // Subscribe to WebSocket messages
-    window.addEventListener('message', (event) => {
-      if (event.data && typeof event.data === 'string') {
-        try {
-          const data = JSON.parse(event.data);
-          handleMessage(data);
-        } catch (error) {
-          console.error('Error parsing WebSocket message:', error);
-        }
-      }
-    });
-
-    return () => {
-      window.removeEventListener('message', handleMessage);
-    };
-  }, [wsClientId, sessionId]);
-
   const handleSubmit = async (e, speechInput = null) => {
     if (e) e.preventDefault();
 
@@ -118,45 +51,34 @@ export default function ChatInterface({ user, session, wsClientId }) {
 
     setMessages(prev => [...prev, userMessage]);
     setInput('');
-    setIsLoading(true);
+    setIsLoading(true); // Set loading state
 
     try {
-      // Use WebSocket for sending if available
-      if (wsClientId && isConnected) {
-        // Generate a unique message ID for tracking this conversation
-        const messageId = uuidv4();
+      // Use HTTP API for chat - this is the standard API defined in OpenAPI
+      console.log('Sending message via HTTP API');
+      const response = await api.chat.send({
+        utter: messageText,
+        session_id: sessionId
+      });
 
-        // Send message through WebSocket
-        send({
-          type: 'chat_message',
-          message_id: messageId,
-          content: messageText,
-          session_id: sessionId,
-          user_id: user?.id
-        });
+      console.log('Received chat response:', response);
 
-        // WebSocket responses will be handled by the listener set up in useEffect
-      } else {
-        // Fall back to HTTP request
-        const response = await api.chat.send({
-          utter: messageText,
-          session_id: sessionId
-        });
+      // Add bot response to UI
+      setMessages(prev => [...prev, {
+        id: uuidv4(),
+        content: response.response,
+        sender: 'bot',
+        timestamp: new Date().toISOString(),
+        metadata: response.metadata
+      }]);
 
-        // Add bot response to UI
-        setMessages(prev => [...prev, {
-          id: uuidv4(),
-          content: response.response,
-          sender: 'bot',
-          timestamp: new Date().toISOString(),
-          metadata: response.metadata
-        }]);
-
-        // Update session ID if needed
-        if (response.session_id && !sessionId) {
-          setSessionId(response.session_id);
-        }
+      // Update session ID if needed
+      if (response.session_id && !sessionId) {
+        setSessionId(response.session_id);
       }
+
+      // Turn off loading state
+      setIsLoading(false);
     } catch (error) {
       console.error('Error sending message:', error);
       setMessages(prev => [...prev, {
@@ -166,7 +88,8 @@ export default function ChatInterface({ user, session, wsClientId }) {
         timestamp: new Date().toISOString(),
         isError: true
       }]);
-    } finally {
+
+      // Always turn off loading on error
       setIsLoading(false);
     }
   };

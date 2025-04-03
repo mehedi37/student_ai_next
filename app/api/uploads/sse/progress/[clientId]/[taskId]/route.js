@@ -2,98 +2,86 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
 export async function GET(request, { params }) {
-  // Fix: await params before destructuring
-  const paramsObj = await params;
-  const { clientId, taskId } = paramsObj;
-  const encoder = new TextEncoder();
+  const { clientId, taskId } = params;
 
-  // Get authentication token from cookies, headers or query params
-  const cookieStore = cookies();
-  const tokenFromCookie = cookieStore.get('access_token')?.value;
-  const authHeader = request.headers.get('authorization');
-  const tokenFromHeader = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  const url = new URL(request.url);
-  const tokenFromQuery = url.searchParams.get('token');
+  // Set headers for SSE
+  const headers = new Headers({
+    'Content-Type': 'text/event-stream',
+    'Cache-Control': 'no-cache',
+    'Connection': 'keep-alive',
+  });
 
-  // Use the first available token
-  const token = tokenFromHeader || tokenFromCookie || tokenFromQuery;
-
-  // Create a TransformStream for sending SSE events
+  // Create a transform stream to handle the SSE events
   const stream = new TransformStream();
   const writer = stream.writable.getWriter();
 
-  // Function to send SSE events
-  const sendEvent = async (event, data) => {
-    await writer.write(
-      encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
-    );
-  };
+  // Create and return the response with the stream
+  const response = new Response(stream.readable, { headers });
 
-  // Function to close the stream
-  const closeStream = async () => {
-    await writer.close();
-  };
-
-  // Send immediate connection event
-  sendEvent('connected', {
-    clientId,
-    taskId,
-    timestamp: new Date().toISOString(),
-    message: 'SSE connection established'
-  });
-
-  // Connect to the FastAPI backend for real-time updates
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
-  const intervalId = setInterval(async () => {
+  // Helper to send SSE messages
+  const sendEvent = async (data) => {
     try {
-      // Make a request to the FastAPI backend using the correct endpoint path
-      // Include the authentication token in the request
-      const headers = {
-        'Accept': 'application/json'
+      await writer.write(
+        new TextEncoder().encode(`data: ${JSON.stringify(data)}\n\n`)
+      );
+    } catch (error) {
+      console.error('Error sending SSE event:', error);
+    }
+  };
+
+  // Connect to the backend SSE endpoint to proxy events
+  const proxySSE = async () => {
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api';
+      const backendUrl = `${apiUrl}/uploads/sse/progress/${clientId}/${taskId}`;
+
+      // Add auth token if available in the request
+      const authHeader = request.headers.get('Authorization');
+      const headers = {};
+      if (authHeader) {
+        headers['Authorization'] = authHeader;
+      }
+
+      const eventSource = new EventSource(backendUrl);
+
+      eventSource.onmessage = async (event) => {
+        try {
+          const data = JSON.parse(event.data);
+          await sendEvent(data);
+        } catch (error) {
+          console.error('Error parsing SSE message:', error);
+        }
       };
 
-      // Add Authorization header if token is available
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
+      eventSource.onerror = async (error) => {
+        console.error('SSE error:', error);
+        await sendEvent({
+          type: 'error',
+          task_id: taskId,
+          error: 'Connection to event source failed',
+          timestamp: new Date().toISOString()
+        });
+        eventSource.close();
+      };
 
-      const response = await fetch(`${apiBaseUrl}/uploads/status/${taskId}?client_id=${clientId}`, {
-        headers
+      // Clean up when client disconnects
+      response.signal.addEventListener('abort', () => {
+        eventSource.close();
       });
-
-      if (!response.ok) {
-        throw new Error(`Failed to fetch task status: ${response.status}`);
-      }
-
-      const data = await response.json();
-
-      // Send progress event with the data
-      await sendEvent('progress', data);
-
-      // If the task is complete or failed, clear the interval
-      if (data.status === 'completed' || data.status === 'failed' ||
-          data.status === 'error' || data.status === 'cancelled') {
-        clearInterval(intervalId);
-        setTimeout(closeStream, 1000); // Wait 1 second before closing
-      }
     } catch (error) {
-      console.error('Error fetching task status:', error);
-      await sendEvent('error', {
-        error: 'Failed to fetch task status',
-        details: error.message
+      console.error('Error setting up SSE proxy:', error);
+      await sendEvent({
+        type: 'error',
+        task_id: taskId,
+        error: 'Failed to connect to event source',
+        timestamp: new Date().toISOString()
       });
-      clearInterval(intervalId);
-      setTimeout(closeStream, 1000);
+      writer.close();
     }
-  }, 1000); // Check every second
+  };
 
-  // Set response headers for SSE
-  return new NextResponse(stream.readable, {
-    headers: {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache, no-transform',
-      'Connection': 'keep-alive',
-      'X-Accel-Buffering': 'no' // Disable buffering for Nginx
-    }
-  });
+  // Start the SSE proxy without waiting
+  proxySSE().catch(console.error);
+
+  return response;
 }
