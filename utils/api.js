@@ -9,6 +9,8 @@ async function fetchAPI(endpoint, options = {}) {
   // Default headers
   const headers = {
     ...options.headers,
+    // Add Origin header to help server determine the correct CORS response
+    'Origin': typeof window !== 'undefined' ? window.location.origin : 'https://student-ai-next.vercel.app'
   };
 
   // Add Content-Type only if not FormData (browser will set it for FormData)
@@ -26,6 +28,7 @@ async function fetchAPI(endpoint, options = {}) {
     ...options,
     headers,
     credentials: 'include', // Include cookies in all requests
+    mode: 'cors', // Explicitly set CORS mode
   };
 
   try {
