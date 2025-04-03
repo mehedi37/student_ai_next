@@ -48,34 +48,6 @@ export default function Home() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Navbar */}
-      <div className={`navbar fixed top-0 z-50 transition-all duration-300 ${scrolled ? 'bg-base-100/90 backdrop-blur-md shadow-md' : 'bg-transparent'}`}>
-        <div className="container mx-auto px-4">
-          <div className="navbar-start">
-            <div className="flex items-center">
-              <div className="avatar-placeholder">
-                <div className="w-10 rounded-full bg-primary text-primary-content grid place-items-center">
-                  <span className="text-xl font-bold">AI</span>
-                </div>
-              </div>
-              <span className="ml-2 text-xl font-bold">Student AI</span>
-              <div className="navbar-center hidden lg:flex ml-4">
-                <ul className="menu menu-horizontal px-1">
-                  <li><a href="#features">Features</a></li>
-                  <li><a href="#how-it-works">How It Works</a></li>
-                </ul>
-              </div>
-            </div>
-          </div>
-          <div className="navbar-end">
-                  <ThemeSwitcher />
-                <Link href="/auth" className="btn btn-primary">Get Started <ArrowRight className="w-4 h-4 ml-1" />
-                </Link>
-              </div>
-
-
-        </div>
-      </div>
 
       {/* Hero Section */}
       <section className="hero min-h-screen bg-gradient-to-b from-base-200 to-base-100 pt-24">
@@ -234,7 +206,7 @@ export default function Home() {
             </div>
           </div>
           <p className="font-semibold mt-2">Student AI</p>
-          <p className="text-sm text-base-content/70">A simple AI-powered learning assistant by HattiMatim_Team</p>
+          <p className="text-sm text-base-content/70">A simple AI-powered learning assistant by হাট্টিমাটিম_Team</p>
         </div>
         <div>
           <div className="grid grid-flow-col gap-4">

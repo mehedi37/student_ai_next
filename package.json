@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "date-fns": "^4.1.0",
     "dompurify": "^3.2.4",
     "lucide-react": "^0.483.0",
     "marked": "^15.0.7",
@@ -16,6 +17,7 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-markdown": "^10.1.0",
+    "remark-gfm": "^4.0.1",
     "uuid": "^9.0.1",
     "wavesurfer.js": "^7.9.3"
   },

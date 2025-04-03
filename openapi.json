@@ -1029,7 +1029,7 @@
           "quizzes"
         ],
         "summary": "List Quizzes",
-        "description": "List all quizzes for the current user.\nCan filter by topic and limit results.",
+        "description": "List all quizzes for the current user with pagination.\nCan filter by topic.",
         "operationId": "list_quizzes_api_quizzes__get",
         "security": [
           {
@@ -1054,20 +1054,31 @@
             }
           },
           {
-            "name": "limit",
+            "name": "page",
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "integer"
-                },
-                {
-                  "type": "null"
-                }
-              ],
-              "title": "Limit"
-            }
+              "type": "integer",
+              "minimum": 1,
+              "description": "Page number, starting from 1",
+              "default": 1,
+              "title": "Page"
+            },
+            "description": "Page number, starting from 1"
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 100,
+              "minimum": 1,
+              "description": "Number of items per page",
+              "default": 10,
+              "title": "Page Size"
+            },
+            "description": "Number of items per page"
           }
         ],
         "responses": {
@@ -1098,6 +1109,48 @@
       }
     },
     "/api/quizzes/{quiz_id}": {
+      "delete": {
+        "tags": [
+          "quizzes"
+        ],
+        "summary": "Delete Quiz",
+        "description": "Delete a specific quiz.",
+        "operationId": "delete_quiz_api_quizzes__quiz_id__delete",
+        "security": [
+          {
+            "OAuth2PasswordBearer": []
+          }
+        ],
+        "parameters": [
+          {
+            "name": "quiz_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Quiz Id"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
       "get": {
         "tags": [
           "quizzes"

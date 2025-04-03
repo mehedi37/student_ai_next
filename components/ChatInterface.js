@@ -1,279 +1,288 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { api } from '@/utils/api';
-import { v4 as uuidv4 } from 'uuid';
+import { useRouter } from 'next/navigation';
+import { PlusCircle, SendHorizontal, Mic, MicOff, Loader2 } from 'lucide-react';
 import ChatMessage from './ChatMessage';
-import Link from 'next/link';
-import { Mic, MicOff, Send, Upload } from 'lucide-react';
+import { api } from '@/utils/api';
 
 export default function ChatInterface({ user, session }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [sessionId, setSessionId] = useState(session?.session_id || null);
+  const [loading, setLoading] = useState(false);
+  const [loadingSession, setLoadingSession] = useState(false);
+  const [error, setError] = useState(null);
   const [isListening, setIsListening] = useState(false);
+  const [speechSupported, setSpeechSupported] = useState(false);
   const messagesEndRef = useRef(null);
-  const messagesContainerRef = useRef(null);
+  const inputRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const router = useRouter();
+  const isMounted = useRef(true);
 
-  // Update session ID when prop changes
   useEffect(() => {
-    if (session?.session_id) {
-      console.log('Setting session in ChatInterface:', session.session_id);
-      setSessionId(session.session_id);
+    // Check if speech recognition is supported
+    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
+      setSpeechSupported(true);
+    }
 
-      // Load messages for this session
-      if (session.recent_messages && Array.isArray(session.recent_messages) && session.recent_messages.length) {
-        console.log(`Loading ${session.recent_messages.length} messages from session`);
+    return () => {
+      isMounted.current = false;
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+    };
+  }, []);
 
-        // Transform the session messages to the expected format
-        // Each message in recent_messages contains both user's message (utter) and bot's response
-        const formattedMessages = [];
+  useEffect(() => {
+    if (session) {
+      setLoadingSession(true);
 
-        session.recent_messages.forEach(msg => {
-          // Add user message first
-          if (msg.utter) {
-            formattedMessages.push({
-              id: uuidv4(),
-              content: msg.utter,
-              sender: 'user',
-              timestamp: msg.timestamp,
-            });
-          }
+      // Extract messages from session if available
+      if (session.recent_messages && Array.isArray(session.recent_messages)) {
+        const formattedMessages = session.recent_messages.flatMap(msg => {
+          const userMsg = {
+            role: 'user',
+            content: msg.utter,
+            timestamp: msg.timestamp,
+          };
 
-          // Then add bot response
-          if (msg.response) {
-            formattedMessages.push({
-              id: uuidv4(),
-              content: msg.response,
-              sender: 'bot',
-              timestamp: msg.timestamp,
-              metadata: msg.metadata || {}
-            });
-          }
+          const assistantMsg = {
+            role: 'assistant',
+            content: msg.response,
+            timestamp: msg.timestamp,
+            metadata: msg.metadata,
+            action_type: msg.action_type,
+          };
+
+          return [userMsg, assistantMsg];
         });
 
         setMessages(formattedMessages);
       } else {
-        console.log('No messages found in session, starting fresh chat');
+        // If no messages or invalid format, set empty messages array
         setMessages([]);
       }
+
+      setLoadingSession(false);
     } else {
-      // Reset state when no session is provided (new session)
-      console.log('No session provided, resetting state');
-      setSessionId(null);
+      // New session, clear messages
       setMessages([]);
     }
   }, [session]);
 
-  // Auto-scroll to bottom when messages change
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
-
-  const handleSubmit = async (e, speechInput = null) => {
-    if (e) e.preventDefault();
-
-    const messageText = speechInput || input;
-    if (!messageText.trim()) return;
-
-    // Add user message to UI immediately
-    const userMessage = {
-      id: uuidv4(),
-      content: messageText,
-      sender: 'user',
-      timestamp: new Date().toISOString()
-    };
-
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true); // Set loading state
-
-    try {
-      // Use HTTP API for chat - this is the standard API defined in OpenAPI
-      console.log('Sending message via HTTP API', {
-        messageText,
-        sessionId,
-        hasExistingSession: !!sessionId
-      });
-
-      const response = await api.chat.send({
-        utter: messageText,
-        session_id: sessionId
-      });
-
-      // Validate the response
-      if (!response || typeof response.response !== 'string') {
-        throw new Error('Invalid response received from chat API');
-      }
-
-      console.log('Received valid chat response', {
-        newSessionId: response.session_id,
-        messageLength: response.response.length
-      });
-
-      // Add bot response to UI
-      setMessages(prev => [...prev, {
-        id: uuidv4(),
-        content: response.response || '',  // Ensure content is never undefined
-        sender: 'bot',
-        timestamp: new Date().toISOString(),
-        metadata: response.metadata
-      }]);
-
-      // Update session ID if needed
-      if (response.session_id && !sessionId) {
-        console.log('Setting new session ID from response:', response.session_id);
-        setSessionId(response.session_id);
-      }
-
-      // Turn off loading state
-      setIsLoading(false);
-    } catch (error) {
-      console.error('Error sending message:', error);
-
-      const errorMessage = error.message === 'Invalid response received from chat API'
-        ? "I received an invalid response. Please try again."
-        : "Sorry, I couldn't process your message. Please try again.";
-
-      setMessages(prev => [...prev, {
-        id: uuidv4(),
-        content: errorMessage,
-        sender: 'bot',
-        timestamp: new Date().toISOString(),
-        isError: true
-      }]);
-
-      // Always turn off loading on error
-      setIsLoading(false);
-    }
-  };
-
-  const toggleVoiceRecognition = () => {
-    if (!('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
-      alert('Speech recognition is not supported in your browser.');
-      return;
-    }
-
-    if (isListening) {
-      setIsListening(false);
-      // Stop speech recognition
-      window.recognition?.stop();
-    } else {
-      setIsListening(true);
-
-      // Initialize speech recognition
-      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-      const recognition = new SpeechRecognition();
-      recognition.continuous = true;
-      recognition.interimResults = true;
-
-      recognition.onresult = (event) => {
-        const transcript = Array.from(event.results)
-          .map(result => result[0])
-          .map(result => result.transcript)
-          .join('');
-
-        setInput(transcript);
-      };
-
-      recognition.onend = () => {
-        setIsListening(false);
-      };
-
-      recognition.start();
-      window.recognition = recognition;
-    }
-  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    if (!input.trim() || loading) return;
+
+    const userMessage = {
+      role: 'user',
+      content: input.trim(),
+      timestamp: new Date().toISOString(),
+    };
+
+    // Add the user's message immediately
+    setMessages(prev => [...prev, userMessage]);
+
+    // Create a loading message
+    const loadingMessage = {
+      role: 'assistant',
+      content: '',
+      isLoading: true,
+    };
+
+    setMessages(prev => [...prev, loadingMessage]);
+    setInput('');
+    setLoading(true);
+    setError(null);
+
+    try {
+      const response = await api.chat.send({
+        utter: userMessage.content,
+        session_id: session?.session_id || undefined,
+      });
+
+      // Remove the loading message and add the real response
+      setMessages(prev => {
+        const withoutLoading = prev.filter(msg => !msg.isLoading);
+        return [
+          ...withoutLoading,
+          {
+            role: 'assistant',
+            content: response.response,
+            timestamp: new Date().toISOString(),
+            metadata: response.metadata,
+            action_type: response.action_type,
+          }
+        ];
+      });
+
+      // If this is a new session, update the URL with the session ID
+      if (!session && response.session_id) {
+        router.push(`/chat/${response.session_id}`);
+      }
+    } catch (err) {
+      console.error("Error sending message:", err);
+      setError(err.message || "Failed to send message. Please try again.");
+
+      // Remove the loading message
+      setMessages(prev => prev.filter(msg => !msg.isLoading));
+    } finally {
+      setLoading(false);
+      // Focus the input field after sending
+      inputRef.current?.focus();
+    }
+  };
+
+  const handleNewChat = async () => {
+    if (loading) return;
+
+    router.push('/chat');
+  };
+
+  const toggleSpeechRecognition = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      return;
+    }
+
+    try {
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const recognition = new SpeechRecognition();
+      recognitionRef.current = recognition;
+
+      recognition.continuous = true;
+      recognition.interimResults = false;
+      recognition.lang = 'en-US';
+
+      recognition.onresult = (event) => {
+        const transcript = event.results[event.results.length - 1][0].transcript;
+        setInput(prev => prev + ' ' + transcript);
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        if (isMounted.current) {
+          setIsListening(false);
+        }
+      };
+
+      recognition.start();
+      setIsListening(true);
+    } catch (error) {
+      console.error('Speech recognition error:', error);
+      setError('Speech recognition failed. Please try again or type your message.');
+    }
+  };
+
+  if (loadingSession) {
+    return (
+      <div className="flex flex-col h-full items-center justify-center">
+        <div className="skeleton w-full h-12 mb-4"></div>
+        <div className="skeleton w-full h-24 mb-4"></div>
+        <div className="skeleton w-full h-24 mb-4"></div>
+        <div className="skeleton w-3/4 h-24 mb-4"></div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full">
-      {/* Messages container with better scrolling */}
-      <div
-        ref={messagesContainerRef}
-        className="flex-1 overflow-y-auto space-y-4 px-2 pb-4 chat-messages"
-      >
-        {messages.length === 0 ? (
-          <div className="hero bg-base-200 rounded-box p-6 mt-4">
-            <div className="hero-content text-center">
-              <div className="max-w-md">
-                <h2 className="text-2xl font-bold">Welcome to Student AI Bot</h2>
-                <p className="py-4">Ask me anything related to your studies!</p>
-              </div>
-            </div>
-          </div>
-        ) : (
-          // Wrap with a Fragment and map with unique keys
-          <>
-            {messages.map(message => (
-              <ChatMessage
-                key={message.id || uuidv4()} // Ensure we always have a key
-                message={{
-                  ...message,
-                  content: message.content || '' // Ensure content is never undefined
-                }}
-                isUser={message.sender === 'user'}
-              />
-            ))}
-          </>
+      {/* Header */}
+      <div className="flex justify-between items-center pb-4 border-b border-base-300">
+        <h2 className="text-lg font-semibold">
+          {session ? (session.title || 'Conversation') : 'New Conversation'}
+        </h2>
+        {session && (
+          <button
+            onClick={handleNewChat}
+            className="btn btn-ghost btn-sm"
+          >
+            <PlusCircle className="h-4 w-4 mr-1" />
+            New Chat
+          </button>
         )}
-
-        {/* Loading indicator */}
-        {isLoading && (
-          <div className="chat chat-start" key="loading-indicator">
-            <div className="chat-bubble chat-bubble-primary min-h-10 flex items-center gap-2">
-              <span className="loading loading-dots loading-md"></span>
-            </div>
-          </div>
-        )}
-
-        <div ref={messagesEndRef} />
       </div>
 
-      {/* Input form with fixed bottom position */}
-      <form
-        onSubmit={handleSubmit}
-        className="flex gap-2 mt-4 p-2 bg-base-100 rounded-lg border border-base-300"
-      >
-        <Link href="/upload" className="btn btn-ghost">
-          <Upload className="h-5 w-5" />
-        </Link>
-        <input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Ask a question..."
-          className="input input-bordered flex-1"
-          disabled={isLoading}
-        />
-        <button
-          type="button"
-          onClick={toggleVoiceRecognition}
-          className={`btn ${isListening ? 'btn-accent' : 'btn-ghost'}`}
-          disabled={isLoading}
-        >
-          {isListening ? (
-            <Mic className="h-5 w-5" />
-          ) : (
-            <MicOff className="h-5 w-5" />
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto my-4 chat-messages p-1">
+        {messages.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-full text-base-content/70 p-4 text-center">
+            <p className="mb-2">No messages yet.</p>
+            <p>Start a conversation by typing a message below.</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            {messages.map((msg, index) => (
+              <ChatMessage
+                key={index}
+                message={msg}
+                isLoading={msg.isLoading}
+                isLastMessage={index === messages.length - 1}
+              />
+            ))}
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+      </div>
+
+      {/* Input */}
+      <div className="mt-auto">
+        {error && (
+          <div className="alert alert-error mb-2 text-sm p-2">
+            <span>{error}</span>
+          </div>
+        )}
+        <form onSubmit={handleSubmit} className="flex gap-2">
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Type a message..."
+            className="input input-bordered flex-1"
+            disabled={loading}
+            ref={inputRef}
+          />
+
+          {speechSupported && (
+            <button
+              type="button"
+              onClick={toggleSpeechRecognition}
+              className={`btn ${isListening ? 'btn-error' : 'btn-ghost'}`}
+              disabled={loading}
+              aria-label={isListening ? "Stop listening" : "Start voice input"}
+            >
+              {isListening ? <MicOff className="h-5 w-5" /> : <Mic className="h-5 w-5" />}
+            </button>
           )}
-        </button>
-        <button
-          type="submit"
-          disabled={isLoading}
-          className="btn btn-primary"
-        >
-          {isLoading ? (
-            <span className="loading loading-spinner loading-xs"></span>
-          ) : (
-            <Send className="h-5 w-5" />
-          )}
-        </button>
-      </form>
+
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={loading || !input.trim()}
+          >
+            {loading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <SendHorizontal className="h-5 w-5" />
+            )}
+          </button>
+        </form>
+      </div>
     </div>
   );
 }

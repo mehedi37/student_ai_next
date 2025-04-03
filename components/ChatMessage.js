@@ -1,89 +1,134 @@
 'use client';
 
-import { useRef, useState, useEffect } from 'react';
-import { marked } from 'marked';
-import DOMPurify from 'dompurify';
-import { User, Bot, X, Volume2 } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import { User, Bot, Copy, Check } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 
-export default function ChatMessage({ message, isUser }) {
-  const [isAudioPlaying, setIsAudioPlaying] = useState(false);
-  const audioRef = useRef(null);
+export default function ChatMessage({ message, isLoading, isLastMessage }) {
+  const [copied, setCopied] = useState(false);
+  const [timeAgo, setTimeAgo] = useState('');
+  const contentRef = useRef(null);
+  const messageRef = useRef(null);
 
-  // Toggle audio playback - using basic browser speech synthesis
-  const toggleAudio = () => {
-    if (isAudioPlaying) {
-      window.speechSynthesis.cancel();
-      setIsAudioPlaying(false);
-    } else {
-      const utterance = new SpeechSynthesisUtterance(message.content || '');
-      utterance.onend = () => setIsAudioPlaying(false);
-      window.speechSynthesis.speak(utterance);
-      setIsAudioPlaying(true);
-    }
-  };
+  // Extract properties from message
+  const { role, content, timestamp } = message || { role: 'assistant', content: '', timestamp: new Date().toISOString() };
+  const isUser = role === 'user';
+  const messageTime = timestamp ? new Date(timestamp) : new Date();
 
-  // Clean up any speech synthesis on unmount
+  // Scroll to view if it's the last message
   useEffect(() => {
-    return () => {
-      window.speechSynthesis.cancel();
-    };
-  }, []);
-
-  // Parse markdown to HTML and sanitize it
-  const renderMarkdown = (content) => {
-    if (!content) return { __html: '' }; // Return empty HTML if content is undefined
-    try {
-      const html = marked(content);
-      const sanitizedHtml = DOMPurify.sanitize(html);
-      return { __html: sanitizedHtml };
-    } catch (error) {
-      console.error('Error rendering markdown:', error);
-      return { __html: '<p>Error rendering content</p>' };
+    if (isLastMessage && messageRef.current) {
+      messageRef.current.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
+  }, [isLastMessage, content]);
+
+  useEffect(() => {
+    // Format the time ago string
+    if (timestamp) {
+      setTimeAgo(formatDistanceToNow(messageTime, { addSuffix: true }));
+
+      // Update time ago every minute
+      const interval = setInterval(() => {
+        setTimeAgo(formatDistanceToNow(messageTime, { addSuffix: true }));
+      }, 60000);
+
+      return () => clearInterval(interval);
+    }
+  }, [messageTime, timestamp]);
+
+  // Handle copy to clipboard
+  const copyToClipboard = () => {
+    if (!content) return;
+
+    navigator.clipboard.writeText(content)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      })
+      .catch(err => {
+        console.error('Failed to copy text: ', err);
+      });
   };
 
-  // Ensure message has all required properties
-  const safeMessage = {
-    content: message?.content || '',
-    timestamp: message?.timestamp || new Date().toISOString(),
-    ...message
-  };
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div
+        ref={messageRef}
+        className={`chat ${isUser ? 'chat-end' : 'chat-start'} mb-4`}
+      >
+        <div className="chat-image avatar">
+          <div className={`w-10 rounded-full ${isUser ? 'bg-primary' : 'bg-neutral'} grid place-items-center text-white`}>
+            {isUser ? (
+              <User className="w-5 h-5" />
+            ) : (
+              <Bot className="w-5 h-5" />
+            )}
+          </div>
+        </div>
+        <div className={`chat-bubble min-h-12 flex items-center ${isUser ? 'chat-bubble-primary' : ''}`}>
+          <span className="loading loading-dots loading-sm"></span>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className={`chat ${isUser ? 'chat-end' : 'chat-start'}`}>
-      <div className="chat-image avatar-placeholder">
-        <div className={`w-10 rounded-full grid place-items-center ${isUser ? 'bg-accent text-accent-content' : 'bg-primary text-primary-content'}`}>
+    <div
+      ref={messageRef}
+      className={`chat ${isUser ? 'chat-end' : 'chat-start'} mb-4 group`}
+    >
+      <div className="chat-image">
+        <div className={`w-10 rounded-full ${isUser ? 'bg-primary' : 'bg-neutral'} grid place-items-center text-white`}>
           {isUser ? (
-            <User className="h-5 w-5" />
+            <User className="w-5 h-5" />
           ) : (
-            <Bot className="h-5 w-5" />
+            <Bot className="w-5 h-5" />
           )}
         </div>
       </div>
-      <div className="chat-header">
-        {isUser ? "You" : "Student AI"}
-        <time className="text-xs opacity-50 ml-1">
-          {new Date(safeMessage.timestamp).toLocaleTimeString()}
-        </time>
+
+      <div className="chat-header text-xs opacity-75">
+        {isUser ? 'You' : 'AI Assistant'}
+        {timestamp && <span className="ml-2">{timeAgo}</span>}
       </div>
-      <div className={`chat-bubble ${isUser ? 'chat-bubble-accent' : 'chat-bubble-primary'} prose prose-sm max-w-none`}>
-        <div className="markdown" dangerouslySetInnerHTML={renderMarkdown(safeMessage.content)} />
+
+      <div className={`chat-bubble ${isUser ? 'chat-bubble-primary' : ''} relative`}>
+        <div ref={contentRef} className="prose prose-sm max-w-none">
+          {isUser ? (
+            <div className="whitespace-pre-wrap">{content}</div>
+          ) : (
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {content}
+            </ReactMarkdown>
+          )}
+        </div>
+
+        <button
+          onClick={copyToClipboard}
+          className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity btn btn-ghost btn-xs btn-circle"
+          aria-label="Copy message"
+        >
+          {copied ? (
+            <Check className="w-3 h-3" />
+          ) : (
+            <Copy className="w-3 h-3" />
+          )}
+        </button>
       </div>
-      <div className="chat-footer opacity-50">
-        {!isUser && (
-          <button
-            className="btn btn-circle btn-xs"
-            onClick={toggleAudio}
-            aria-label={isAudioPlaying ? "Stop speech" : "Read aloud"}
-          >
-            {isAudioPlaying ? (
-              <X className="h-4 w-4" />
-            ) : (
-              <Volume2 className="h-4 w-4" />
-            )}
-          </button>
-        )}
-      </div>
+
+      {message?.sources && message.sources.length > 0 && (
+        <div className="chat-footer opacity-75 text-xs mt-1">
+          <span>Sources:</span>
+          {message.sources.map((source, idx) => (
+            <span key={idx} className="badge badge-sm badge-outline ml-1">
+              {source.title || `Source ${idx + 1}`}
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

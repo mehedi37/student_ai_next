@@ -1,46 +1,57 @@
 'use client';
 
-import { useTheme } from '@/components/context/ThemeContext';
-import { Palette } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { useTheme } from './context/ThemeContext';
+import { Sun, Moon, Monitor } from 'lucide-react';
 
 export default function ThemeSwitcher({ showText = true }) {
-  const { theme, setTheme, themes } = useTheme();
+  const { theme, setTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
 
-  // Group themes into categories
-  const popularThemes = ['light', 'dark', 'dracula', 'coffee', 'bumblebee', 'pastel', 'valentine', 'cyberpunk'];
-  const otherThemes = themes.filter(t => !popularThemes.includes(t));
+  // Avoid hydration mismatch by only showing the switcher after mount
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted) return null;
+
+  const toggleTheme = () => {
+    const themeSequence = ['bumblebee', 'dracula', 'system'];
+    const currentIndex = themeSequence.indexOf(theme);
+    const nextIndex = (currentIndex + 1) % themeSequence.length;
+    setTheme(themeSequence[nextIndex]);
+  };
+
+  const getThemeIcon = () => {
+    switch (theme) {
+      case 'bumblebee':
+        return <Sun className="h-5 w-5" />;
+      case 'dracula':
+        return <Moon className="h-5 w-5" />;
+      default:
+        return <Monitor className="h-5 w-5" />;
+    }
+  };
+
+  const getThemeText = () => {
+    switch (theme) {
+      case 'bumblebee':
+        return 'bumblebee';
+      case 'dracula':
+        return 'dracula';
+      default:
+        return 'System';
+    }
+  };
 
   return (
-    <div className="dropdown dropdown-end">
-      <div tabIndex={0} role="button" className="btn btn-ghost btn-sm">
-        <Palette className="h-4 w-4" />
-        {showText && <span className="ml-1">Theme</span>}
-      </div>
-      <ul tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-200 rounded-box w-52 max-h-96 overflow-y-auto">
-        <li className="menu-title text-xs">Popular</li>
-        {popularThemes.map((t) => (
-          <li key={t}>
-            <button
-              className={theme === t ? 'active' : ''}
-              onClick={() => setTheme(t)}
-            >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-            </button>
-          </li>
-        ))}
-
-        <li className="menu-title text-xs pt-2">More Themes</li>
-        {otherThemes.map((t) => (
-          <li key={t}>
-            <button
-              className={theme === t ? 'active' : ''}
-              onClick={() => setTheme(t)}
-            >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
-            </button>
-          </li>
-        ))}
-      </ul>
-    </div>
+    <button
+      onClick={toggleTheme}
+      className="btn btn-ghost btn-circle"
+      aria-label={`Switch to ${theme === 'bumblebee' ? 'dracula' : theme === 'dracula' ? 'system' : 'bumblebee'} theme`}
+    >
+      {getThemeIcon()}
+      {showText && <span className="ml-2">{getThemeText()}</span>}
+    </button>
   );
 }

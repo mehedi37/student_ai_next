@@ -109,11 +109,38 @@ export const api = {
   sessions: {
     list: (limit = 20) => fetchAPI(`/sessions/?limit=${limit}`),
     get: (sessionId) => fetchAPI(`/sessions/${sessionId}`),
+    create: () => fetchAPI('/sessions/', {
+      method: 'POST',
+    }),
     delete: (sessionId) => fetchAPI(`/sessions/${sessionId}`, {
       method: 'DELETE',
     }),
     deleteAll: () => fetchAPI('/sessions/', {
       method: 'DELETE',
+    }),
+  },
+
+  // Quiz endpoints
+  quizzes: {
+    list: (page = 1, pageSize = 10, topic = null) => {
+      const params = new URLSearchParams({
+        page: page.toString(),
+        page_size: pageSize.toString(),
+      });
+
+      if (topic) {
+        params.append('topic', topic);
+      }
+
+      return fetchAPI(`/quizzes/?${params.toString()}`);
+    },
+    get: (quizId) => fetchAPI(`/quizzes/${quizId}`),
+    delete: (quizId) => fetchAPI(`/quizzes/${quizId}`, {
+      method: 'DELETE',
+    }),
+    submit: (data) => fetchAPI('/quizzes/submit', {
+      method: 'POST',
+      body: JSON.stringify(data),
     }),
   },
 

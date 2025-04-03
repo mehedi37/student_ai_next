@@ -3,6 +3,7 @@ import './globals.css';
 import { AuthProvider } from '@/components/context/AuthContext';
 import { ThemeProvider } from '@/components/context/ThemeContext';
 import { TaskProgressProvider } from '@/app/components/TaskProgressManager';
+import MainLayout from '@/components/MainLayout';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -18,7 +19,9 @@ export default function RootLayout({ children }) {
         <ThemeProvider>
           <AuthProvider>
             <TaskProgressProvider>
-              {children}
+              <MainLayout>
+                {children}
+              </MainLayout>
             </TaskProgressProvider>
           </AuthProvider>
         </ThemeProvider>
