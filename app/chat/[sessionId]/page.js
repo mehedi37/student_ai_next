@@ -58,31 +58,6 @@ export default function ChatPage({ params }) {
           Chat {session?.title ? `- ${session.title}` : `#${sessionId.slice(0, 6)}`}
         </h1>
 
-        {/* Custom scrollbar styles for the chat interface */}
-        <style jsx global>{`
-          /* Custom scrollbar styles */
-          .chat-messages::-webkit-scrollbar {
-            width: 6px;
-          }
-          .chat-messages::-webkit-scrollbar-track {
-            background: hsl(var(--b2));
-            border-radius: 8px;
-          }
-          .chat-messages::-webkit-scrollbar-thumb {
-            background: hsl(var(--p));
-            border-radius: 8px;
-          }
-          .chat-messages::-webkit-scrollbar-thumb:hover {
-            background: hsl(var(--pf));
-          }
-
-          /* For Firefox */
-          .chat-messages {
-            scrollbar-width: thin;
-            scrollbar-color: hsl(var(--p)) hsl(var(--b2));
-          }
-        `}</style>
-
         <div className="card bg-base-100 shadow-xl">
           <div className="card-body">
             <ChatInterface user={user} session={session} />

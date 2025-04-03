@@ -1,9 +1,19 @@
 'use client';
 
-import { createContext, useContext, useEffect, useState } from 'react';
-import { Loader2, X, ListPlus, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react';
 import { api } from '@/utils/api';
 import Link from 'next/link';
+import {
+  Upload,
+  Loader,
+  AlertCircle,
+  CheckCircle,
+  X,
+  Minimize2,
+  Maximize2,
+  Info,
+  Trash,
+} from 'lucide-react';
 
 // Context for managing tasks across the application
 const TaskContext = createContext(null);
@@ -14,6 +24,7 @@ const TaskContext = createContext(null);
 export function TaskProgressProvider({ children }) {
   const [tasks, setTasks] = useState({});
   const [showTaskManager, setShowTaskManager] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
 
   // Add a new task to be tracked
   const addTask = (taskId, initialData = {}) => {
@@ -43,6 +54,7 @@ export function TaskProgressProvider({ children }) {
       [taskId]: {
         ...prev[taskId],
         ...data,
+        updated: new Date()
       }
     }));
   };
@@ -118,8 +130,33 @@ export function TaskProgressProvider({ children }) {
           console.error('Error parsing stored tasks', e);
         }
       }
+
+      // Load UI state from localStorage
+      const savedShowState = localStorage.getItem('taskManagerVisible');
+      if (savedShowState !== null) {
+        setShowTaskManager(savedShowState === 'true');
+      }
+
+      const savedCollapseState = localStorage.getItem('taskManagerCollapsed');
+      if (savedCollapseState !== null) {
+        setCollapsed(savedCollapseState === 'true');
+      }
     }
   }, []);
+
+  // Save visibility state to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('taskManagerVisible', showTaskManager.toString());
+    }
+  }, [showTaskManager]);
+
+  // Save collapsed state to localStorage
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('taskManagerCollapsed', collapsed.toString());
+    }
+  }, [collapsed]);
 
   return (
     <TaskContext.Provider value={{
@@ -131,7 +168,9 @@ export function TaskProgressProvider({ children }) {
       getActiveTasks,
       getAllTasks,
       showTaskManager,
-      setShowTaskManager
+      setShowTaskManager,
+      collapsed,
+      setCollapsed
     }}>
       {children}
       <TaskProgressManager />
@@ -174,7 +213,7 @@ export function TaskProgressTracker({ taskId, onComplete, onError, initialData =
           progressPercentage = Math.floor((response.current / response.total) * 100);
         }
 
-        // Extract video count for YouTube playlists if available
+        // Extract metadata if available
         const metadata = {
           ...(response.metadata || {})
         };
@@ -238,176 +277,380 @@ export function TaskProgressTracker({ taskId, onComplete, onError, initialData =
   return null;
 }
 
-/**
- * Component that displays task progress
- */
-export function TaskProgressManager() {
+// Task icon component that renders appropriate icon based on task state
+function TaskIcon({ task }) {
+  if (task.status === 'completed') {
+    return <CheckCircle className="w-5 h-5 text-success" />;
+  } else if (['error', 'failed'].includes(task.status)) {
+    return <AlertCircle className="w-5 h-5 text-error" />;
+  } else if (task.status === 'cancelled') {
+    return <X className="w-5 h-5" />;
+  } else if (task.type === 'upload' && task.progress < 100) {
+    return <Upload className="w-5 h-5" />;
+  } else {
+    return <Loader className="w-5 h-5 animate-spin" />;
+  }
+}
+
+export default function TaskProgressManager() {
   const {
     getAllTasks,
     getActiveTasks,
+    removeTask,
     cancelTask,
     showTaskManager,
-    setShowTaskManager
+    setShowTaskManager,
+    collapsed,
+    setCollapsed
   } = useTaskProgress();
 
-  const allTasks = getAllTasks();
+  const [filterType, setFilterType] = useState('all');
+  const [notification, setNotification] = useState(null);
+  const [expandedTasks, setExpandedTasks] = useState({});
+
+  // Get all tasks
+  const tasks = getAllTasks();
   const activeTasks = getActiveTasks();
 
-  if (allTasks.length === 0) return null;
+  // Display notification when tasks complete
+  useEffect(() => {
+    const handleTaskCompletion = () => {
+      const completedTasks = tasks.filter(task =>
+        task.status === 'completed' &&
+        task.updated && // Ensure updated property exists
+        new Date(task.updated) > new Date(Date.now() - 5000)
+      );
 
-  // Get status icon based on task status
-  const getStatusIcon = (status) => {
-    switch (status) {
-      case 'completed': return <CheckCircle className="h-4 w-4" />;
-      case 'failed':
-      case 'error': return <XCircle className="h-4 w-4" />;
-      case 'cancelled': return <AlertTriangle className="h-4 w-4" />;
-      default: return <Loader2 className="h-4 w-4 animate-spin" />;
+      if (completedTasks.length > 0) {
+        setNotification({
+          message: `${completedTasks.length} task${completedTasks.length > 1 ? 's' : ''} completed`,
+          type: 'success'
+        });
+
+        // Clear notification after 3 seconds
+        setTimeout(() => {
+          setNotification(null);
+        }, 3000);
+      }
+    };
+
+    handleTaskCompletion();
+  }, [tasks]);
+
+  // Group tasks by type
+  const groupedTasks = useMemo(() => {
+    const grouped = {};
+
+    // Filter tasks based on selected filter
+    const filteredTasks = tasks.filter(task => {
+      if (filterType === 'all') return true;
+      if (filterType === 'active') return ['processing', 'queued'].includes(task.status);
+      if (filterType === 'completed') return task.status === 'completed';
+      if (filterType === 'error') return ['error', 'failed', 'cancelled'].includes(task.status);
+      return task.type === filterType;
+    });
+
+    // Group by type
+    filteredTasks.forEach(task => {
+      const type = task.type || 'generic';
+      if (!grouped[type]) {
+        grouped[type] = [];
+      }
+      grouped[type].push(task);
+    });
+
+    return grouped;
+  }, [tasks, filterType]);
+
+  // Task types with counts
+  const taskTypes = useMemo(() => {
+    const types = {
+      all: tasks.length,
+      active: tasks.filter(t => ['processing', 'queued'].includes(t.status)).length,
+      completed: tasks.filter(t => t.status === 'completed').length,
+      error: tasks.filter(t => ['error', 'failed', 'cancelled'].includes(t.status)).length
+    };
+
+    // Add custom types
+    tasks.forEach(task => {
+      const type = task.type || 'generic';
+      if (!types[type]) {
+        types[type] = 0;
+      }
+      types[type]++;
+    });
+
+    return types;
+  }, [tasks]);
+
+  // Calculate stats
+  const stats = useMemo(() => {
+    return {
+      total: tasks.length,
+      active: tasks.filter(t => ['processing', 'queued'].includes(t.status)).length,
+      completed: tasks.filter(t => t.status === 'completed').length,
+      error: tasks.filter(t => ['error', 'failed', 'cancelled'].includes(t.status)).length,
+      averageProgress: tasks.length
+        ? Math.round(tasks.reduce((acc, task) => acc + task.progress, 0) / tasks.length)
+        : 0,
+      // Calculate oldest active task time in minutes
+      oldestActive: tasks.filter(t => ['processing', 'queued'].includes(t.status)).length
+        ? Math.round((Date.now() - new Date(Math.min(...tasks
+            .filter(t => ['processing', 'queued'].includes(t.status))
+            .map(t => new Date(t.started).getTime())))) / 60000)
+        : 0
+    };
+  }, [tasks]);
+
+  // Handle task cancel
+  const handleCancelTask = async (taskId) => {
+    try {
+      await cancelTask(taskId);
+      setNotification({
+        message: 'Task canceled successfully',
+        type: 'info'
+      });
+
+      // Clear notification after 3 seconds
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+    } catch (error) {
+      console.error('Failed to cancel task:', error);
+      setNotification({
+        message: 'Failed to cancel task',
+        type: 'error'
+      });
     }
   };
 
+  // Handle task removal
+  const handleRemoveTask = (taskId) => {
+    removeTask(taskId);
+    setNotification({
+      message: 'Task removed',
+      type: 'info'
+    });
+
+    // Clear notification after 3 seconds
+    setTimeout(() => {
+      setNotification(null);
+    }, 3000);
+  };
+
+  // Toggle task expanded state
+  const toggleTaskExpanded = (taskId) => {
+    setExpandedTasks(prev => ({
+      ...prev,
+      [taskId]: !prev[taskId]
+    }));
+  };
+
+  // Show task manager when there are active tasks
+  useEffect(() => {
+    if (activeTasks.length > 0 && !showTaskManager) {
+      setShowTaskManager(true);
+    }
+  }, [activeTasks.length, showTaskManager, setShowTaskManager]);
+
+  if (!showTaskManager) {
+    return (
+      <div className="fixed bottom-4 right-4 z-50">
+        {activeTasks.length > 0 && (
+          <button
+            onClick={() => setShowTaskManager(true)}
+            className="btn btn-circle btn-primary"
+            aria-label="Show task manager"
+          >
+            <Info className="w-5 h-5" />
+            <span className="absolute -top-2 -right-2 badge badge-sm badge-secondary">{activeTasks.length}</span>
+          </button>
+        )}
+      </div>
+    );
+  }
+
+  // Calculate task manager height based on collapsed state
+  const taskManagerHeight = collapsed ? 'h-12' : 'h-80';
+
   return (
-    <>
-      {/* Floating task indicator when manager is closed */}
-      {!showTaskManager && activeTasks.length > 0 && (
-        <button
-          className="fixed bottom-4 right-4 btn btn-primary btn-circle"
-          onClick={() => setShowTaskManager(true)}
-          aria-label="Show active tasks"
-        >
-          <div className="indicator">
-            <span className="indicator-item badge badge-secondary">{activeTasks.length}</span>
-            <Loader2 className="h-5 w-5 animate-spin" />
-          </div>
-        </button>
+    <div className="fixed bottom-4 right-4 z-50">
+      {/* Notification */}
+      {notification && (
+        <div className={`alert ${notification.type === 'error' ? 'alert-error' : notification.type === 'success' ? 'alert-success' : 'alert-info'} mb-2`}>
+          <span>{notification.message}</span>
+          <button onClick={() => setNotification(null)} className="btn btn-sm btn-ghost">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
       )}
 
-      {/* Task manager drawer */}
-      {showTaskManager && (
-        <div className="fixed bottom-0 right-0 z-40 m-4 max-w-md w-full">
-          <div className="bg-base-200 shadow-lg rounded-box overflow-hidden">
-            {/* Header */}
-            <div className="bg-primary text-primary-content px-4 py-3 flex justify-between items-center">
-              <h3 className="font-medium flex items-center gap-2">
-                <Loader2 className="h-4 w-4 animate-spin" />
-                <span>
-                  {activeTasks.length > 0
-                    ? `Active Tasks (${activeTasks.length})`
-                    : 'Recent Tasks'}
-                </span>
-              </h3>
+      {/* Task Manager */}
+      <div className={`card card-bordered bg-base-200 shadow-lg transition-all duration-300 ${taskManagerHeight} w-80 overflow-hidden`}>
+        {/* Header */}
+        <div className="card-title p-3 bg-primary text-primary-content flex justify-between items-center text-sm">
+          <div className="flex gap-2 items-center">
+            <Info className="w-4 h-4" />
+            <span>Tasks ({tasks.length})</span>
+            {activeTasks.length > 0 && (
+              <span className="badge badge-sm badge-secondary">{activeTasks.length} active</span>
+            )}
+          </div>
+          <div className="flex gap-1">
+            <button
+              onClick={() => setCollapsed(!collapsed)}
+              className="btn btn-ghost btn-xs btn-square"
+              aria-label={collapsed ? 'Expand' : 'Collapse'}
+            >
+              {collapsed ? <Maximize2 className="w-4 h-4" /> : <Minimize2 className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={() => setShowTaskManager(false)}
+              className="btn btn-ghost btn-xs btn-square"
+              aria-label="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+
+        {/* Content only shown when not collapsed */}
+        {!collapsed && (
+          <div className="card-body p-0 overflow-hidden">
+            {/* Filter tabs */}
+            <div className="tabs tabs-boxed bg-base-300 rounded-none">
               <button
-                className="btn btn-ghost btn-sm btn-circle"
-                onClick={() => setShowTaskManager(false)}
-                aria-label="Close task manager"
+                onClick={() => setFilterType('all')}
+                className={`tab flex-1 ${filterType === 'all' ? 'tab-active' : ''}`}
               >
-                <X className="h-4 w-4" />
+                All ({taskTypes.all})
               </button>
-            </div>
-
-            {/* Task list */}
-            <div className="p-3 max-h-96 overflow-y-auto">
-              {allTasks.length > 0 ? (
-                <div className="flex flex-col gap-3">
-                  {allTasks.map((task) => (
-                    <div
-                      key={task.id}
-                      className={`p-3 border rounded-lg ${
-                        task.status === 'completed' ? 'border-success bg-success bg-opacity-10' :
-                        task.status === 'error' || task.status === 'failed' ? 'border-error bg-error bg-opacity-10' :
-                        task.status === 'cancelled' ? 'border-warning bg-warning bg-opacity-10' :
-                        'border-primary bg-base-100'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between">
-                        <div className="flex items-center gap-2">
-                          {getStatusIcon(task.status)}
-                          <span className="font-medium">{task.title}</span>
-                        </div>
-                        <div className="capitalize badge">
-                          {task.status}
-                        </div>
-                      </div>
-
-                      {/* Message */}
-                      <p className="text-sm mt-1 mb-2">
-                        {task.error || task.message || 'Processing...'}
-                      </p>
-
-                      {/* YouTube playlist metadata */}
-                      {task.metadata?.video_count && (
-                        <div className="text-sm flex items-center gap-1 mb-2">
-                          <ListPlus className="h-4 w-4" />
-                          <span>{task.metadata.video_count} videos in playlist</span>
-                        </div>
-                      )}
-
-                      {/* Progress bar for active tasks */}
-                      {['processing', 'queued'].includes(task.status) && (
-                        <>
-                          <div className="flex justify-between text-xs mb-1">
-                            <span>{task.progress}% Complete</span>
-                          </div>
-                          <div className="w-full bg-base-300 rounded-full h-2">
-                            <div
-                              className="bg-primary h-2 rounded-full"
-                              style={{ width: `${task.progress}%` }}
-                            ></div>
-                          </div>
-                        </>
-                      )}
-
-                      {/* Actions */}
-                      <div className="flex justify-end mt-2">
-                        {['processing', 'queued'].includes(task.status) && (
-                          <button
-                            className="btn btn-error btn-xs"
-                            onClick={() => cancelTask(task.id)}
-                          >
-                            Cancel
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6">
-                  <p className="text-base-content/70">No tasks available</p>
-                </div>
+              {taskTypes.active > 0 && (
+                <button
+                  onClick={() => setFilterType('active')}
+                  className={`tab flex-1 ${filterType === 'active' ? 'tab-active' : ''}`}
+                >
+                  Active ({taskTypes.active})
+                </button>
+              )}
+              {taskTypes.completed > 0 && (
+                <button
+                  onClick={() => setFilterType('completed')}
+                  className={`tab flex-1 ${filterType === 'completed' ? 'tab-active' : ''}`}
+                >
+                  Done ({taskTypes.completed})
+                </button>
+              )}
+              {taskTypes.error > 0 && (
+                <button
+                  onClick={() => setFilterType('error')}
+                  className={`tab flex-1 ${filterType === 'error' ? 'tab-active' : ''}`}
+                >
+                  Failed ({taskTypes.error})
+                </button>
               )}
             </div>
 
-            {/* Footer */}
-            <div className="p-2 border-t border-base-300 flex justify-end">
-              <Link href="/upload" className="btn btn-ghost btn-sm">
-                Upload More
-              </Link>
+            {/* Tasks list */}
+            <div className="overflow-y-auto p-2 h-full">
+              {tasks.length === 0 ? (
+                <div className="text-center py-6 text-base-content/70">
+                  <p>No tasks to display</p>
+                </div>
+              ) : (
+                Object.entries(groupedTasks).map(([type, typeTasks]) => (
+                  <div key={type} className="mb-3">
+                    <div className="text-xs font-bold uppercase mb-1 text-base-content/70">
+                      {type}
+                    </div>
+                    <div className="space-y-2">
+                      {typeTasks.map(task => (
+                        <div
+                          key={task.id}
+                          className="card card-compact card-bordered bg-base-100 shadow-sm"
+                        >
+                          <div
+                            className="p-2 cursor-pointer"
+                            onClick={() => toggleTaskExpanded(task.id)}
+                          >
+                            <div className="flex justify-between items-center">
+                              <div className="flex items-center gap-2">
+                                <TaskIcon task={task} />
+                                <span className="font-medium truncate max-w-[150px]">
+                                  {task.title}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {task.status === 'processing' && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleCancelTask(task.id);
+                                    }}
+                                    className="btn btn-ghost btn-xs btn-square text-error"
+                                    aria-label="Cancel task"
+                                  >
+                                    <X className="w-4 h-4" />
+                                  </button>
+                                )}
+                                {['completed', 'error', 'failed', 'cancelled'].includes(task.status) && (
+                                  <button
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleRemoveTask(task.id);
+                                    }}
+                                    className="btn btn-ghost btn-xs btn-square"
+                                    aria-label="Remove task"
+                                  >
+                                    <Trash className="w-4 h-4" />
+                                  </button>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Progress bar */}
+                            {task.status === 'processing' && (
+                              <progress
+                                className={`progress progress-primary w-full mt-1 ${task.progress === 100 ? 'opacity-80' : ''}`}
+                                value={task.progress}
+                                max="100"
+                              ></progress>
+                            )}
+
+                            {/* Status message */}
+                            <div className="text-xs mt-1 text-base-content/70 truncate">
+                              {task.message}
+                            </div>
+                          </div>
+
+                          {/* Expanded details */}
+                          {expandedTasks[task.id] && (
+                            <div className="px-2 pb-2 text-xs border-t border-base-300 pt-2">
+                              <div className="grid grid-cols-2 gap-1">
+                                <div>Status: <span className="font-medium">{task.status}</span></div>
+                                <div>Progress: <span className="font-medium">{task.progress}%</span></div>
+                                <div>Started: <span className="font-medium">{new Date(task.started).toLocaleTimeString()}</span></div>
+                                {task.error && (
+                                  <div className="col-span-2 text-error">Error: {task.error}</div>
+                                )}
+                                {task.metadata && Object.entries(task.metadata).map(([key, value]) => (
+                                  <div key={key} className="col-span-2">
+                                    {key}: <span className="font-medium">{value}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
-        </div>
-      )}
-    </>
+        )}
+      </div>
+    </div>
   );
-}
-
-// Re-export the task tracking hook for video uploads
-export function useVideoUploadTask(taskId, initialData = {}) {
-  const { addTask, updateTask, cancelTask } = useTaskProgress();
-
-  // Add the task to tracking when ID is provided
-  useEffect(() => {
-    if (taskId) {
-      addTask(taskId, {
-        type: 'youtube',
-        title: initialData.title || 'YouTube Upload',
-        ...initialData
-      });
-    }
-  }, [taskId, addTask, initialData]);
-
-  return {
-    cancelTask: () => cancelTask(taskId),
-    updateTaskData: (data) => updateTask(taskId, data)
-  };
 }

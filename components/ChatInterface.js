@@ -19,14 +19,50 @@ export default function ChatInterface({ user, session }) {
   // Update session ID when prop changes
   useEffect(() => {
     if (session?.session_id) {
+      console.log('Setting session in ChatInterface:', session.session_id);
       setSessionId(session.session_id);
 
       // Load messages for this session
-      if (session.recent_messages?.length) {
-        setMessages(session.recent_messages);
+      if (session.recent_messages && Array.isArray(session.recent_messages) && session.recent_messages.length) {
+        console.log(`Loading ${session.recent_messages.length} messages from session`);
+
+        // Transform the session messages to the expected format
+        // Each message in recent_messages contains both user's message (utter) and bot's response
+        const formattedMessages = [];
+
+        session.recent_messages.forEach(msg => {
+          // Add user message first
+          if (msg.utter) {
+            formattedMessages.push({
+              id: uuidv4(),
+              content: msg.utter,
+              sender: 'user',
+              timestamp: msg.timestamp,
+            });
+          }
+
+          // Then add bot response
+          if (msg.response) {
+            formattedMessages.push({
+              id: uuidv4(),
+              content: msg.response,
+              sender: 'bot',
+              timestamp: msg.timestamp,
+              metadata: msg.metadata || {}
+            });
+          }
+        });
+
+        setMessages(formattedMessages);
       } else {
+        console.log('No messages found in session, starting fresh chat');
         setMessages([]);
       }
+    } else {
+      // Reset state when no session is provided (new session)
+      console.log('No session provided, resetting state');
+      setSessionId(null);
+      setMessages([]);
     }
   }, [session]);
 
@@ -55,18 +91,31 @@ export default function ChatInterface({ user, session }) {
 
     try {
       // Use HTTP API for chat - this is the standard API defined in OpenAPI
-      console.log('Sending message via HTTP API');
+      console.log('Sending message via HTTP API', {
+        messageText,
+        sessionId,
+        hasExistingSession: !!sessionId
+      });
+
       const response = await api.chat.send({
         utter: messageText,
         session_id: sessionId
       });
 
-      console.log('Received chat response:', response);
+      // Validate the response
+      if (!response || typeof response.response !== 'string') {
+        throw new Error('Invalid response received from chat API');
+      }
+
+      console.log('Received valid chat response', {
+        newSessionId: response.session_id,
+        messageLength: response.response.length
+      });
 
       // Add bot response to UI
       setMessages(prev => [...prev, {
         id: uuidv4(),
-        content: response.response,
+        content: response.response || '',  // Ensure content is never undefined
         sender: 'bot',
         timestamp: new Date().toISOString(),
         metadata: response.metadata
@@ -74,6 +123,7 @@ export default function ChatInterface({ user, session }) {
 
       // Update session ID if needed
       if (response.session_id && !sessionId) {
+        console.log('Setting new session ID from response:', response.session_id);
         setSessionId(response.session_id);
       }
 
@@ -81,9 +131,14 @@ export default function ChatInterface({ user, session }) {
       setIsLoading(false);
     } catch (error) {
       console.error('Error sending message:', error);
+
+      const errorMessage = error.message === 'Invalid response received from chat API'
+        ? "I received an invalid response. Please try again."
+        : "Sorry, I couldn't process your message. Please try again.";
+
       setMessages(prev => [...prev, {
         id: uuidv4(),
-        content: "Sorry, I couldn't process your message. Please try again.",
+        content: errorMessage,
         sender: 'bot',
         timestamp: new Date().toISOString(),
         isError: true
@@ -152,18 +207,24 @@ export default function ChatInterface({ user, session }) {
             </div>
           </div>
         ) : (
-          messages.map(message => (
-            <ChatMessage
-              key={message.id}
-              message={message}
-              isUser={message.sender === 'user'}
-            />
-          ))
+          // Wrap with a Fragment and map with unique keys
+          <>
+            {messages.map(message => (
+              <ChatMessage
+                key={message.id || uuidv4()} // Ensure we always have a key
+                message={{
+                  ...message,
+                  content: message.content || '' // Ensure content is never undefined
+                }}
+                isUser={message.sender === 'user'}
+              />
+            ))}
+          </>
         )}
 
         {/* Loading indicator */}
         {isLoading && (
-          <div className="chat chat-start">
+          <div className="chat chat-start" key="loading-indicator">
             <div className="chat-bubble chat-bubble-primary min-h-10 flex items-center gap-2">
               <span className="loading loading-dots loading-md"></span>
             </div>

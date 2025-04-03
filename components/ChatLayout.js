@@ -22,9 +22,13 @@ import {
   Plus,
   RefreshCw,
   X,
-  AlertCircle
+  AlertCircle,
+  Activity,
+  Server,
+  Database
 } from 'lucide-react';
 import ThemeSwitcher from '@/components/ThemeSwitcher';
+import { useTaskProgress } from '@/app/components/TaskProgressManager';
 
 export default function ChatLayout({ children }) {
   const router = useRouter();
@@ -38,7 +42,7 @@ export default function ChatLayout({ children }) {
   const [collapsed, setCollapsed] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [notification, setNotification] = useState(null);
-  const [activeTasks, setActiveTasks] = useState([]);
+  const { getActiveTasks, setShowTaskManager } = useTaskProgress();
 
   // Load the collapsed state from localStorage on component mount
   useEffect(() => {
@@ -162,19 +166,6 @@ export default function ChatLayout({ children }) {
     router.push('/auth');
   };
 
-  // Mock function to load active tasks - replace with real implementation
-  // In a real implementation, this would poll an API endpoint
-  useEffect(() => {
-    const storedTasks = localStorage.getItem('activeTasks');
-    if (storedTasks) {
-      try {
-        setActiveTasks(JSON.parse(storedTasks));
-      } catch (e) {
-        console.error('Error parsing stored tasks', e);
-      }
-    }
-  }, []);
-
   // Clear the notification after 5 seconds
   useEffect(() => {
     if (notification) {
@@ -185,6 +176,9 @@ export default function ChatLayout({ children }) {
     }
   }, [notification]);
 
+  // Check if user is admin for diagnostics access
+  const isAdmin = user?.role === 'admin';
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-screen">
@@ -192,6 +186,8 @@ export default function ChatLayout({ children }) {
       </div>
     );
   }
+
+  const activeTasks = getActiveTasks();
 
   return (
     <div className="drawer lg:drawer-open">
@@ -242,43 +238,16 @@ export default function ChatLayout({ children }) {
             </div>
           )}
 
-          {/* Active Tasks Toast */}
+          {/* Active Tasks Button when tasks exist */}
           {activeTasks.length > 0 && (
-            <div className="toast toast-bottom toast-end z-40">
-              <div className="bg-base-200 shadow-lg rounded-box overflow-hidden max-w-xs">
-                <div className="bg-primary text-primary-content px-4 py-2 flex justify-between items-center">
-                  <span className="font-medium flex items-center gap-2">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Active Tasks
-                  </span>
-                  <button className="btn btn-ghost btn-xs btn-circle">
-                    <X className="h-3 w-3" />
-                  </button>
-                </div>
-                <div className="p-2 max-h-60 overflow-y-auto">
-                  {activeTasks.map((task) => (
-                    <div key={task.id} className="p-2 mb-1 bg-base-100 rounded">
-                      <div className="text-sm font-medium">{task.title}</div>
-                      <div className="mt-1">
-                        <div className="flex justify-between text-xs mb-1">
-                          <span>{task.progress}% Complete</span>
-                        </div>
-                        <div className="w-full bg-base-300 rounded-full h-1.5">
-                          <div
-                            className="bg-primary h-1.5 rounded-full"
-                            style={{ width: `${task.progress}%` }}
-                          ></div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="p-2 border-t border-base-300 flex justify-end">
-                  <Link href="/upload" className="btn btn-ghost btn-xs">
-                    View All
-                  </Link>
-                </div>
-              </div>
+            <div className="fixed top-4 right-4 z-30 lg:block hidden">
+              <button
+                onClick={() => setShowTaskManager(true)}
+                className="btn btn-primary btn-sm"
+              >
+                <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                Tasks ({activeTasks.length})
+              </button>
             </div>
           )}
 
@@ -355,6 +324,46 @@ export default function ChatLayout({ children }) {
                 {!collapsed && <span>Upload</span>}
               </Link>
             </li>
+
+            {/* Admin/diagnostics section */}
+            {isAdmin && (
+              <>
+                <div className="divider my-0"></div>
+                <li className="menu-title">
+                  {!collapsed && <span>Admin</span>}
+                </li>
+                <li>
+                  <Link
+                    href="/diagnostics"
+                    className={pathname.startsWith('/diagnostics') ? 'active' : ''}
+                    onClick={closeDrawer}
+                  >
+                    <Activity className={`h-5 w-5 ${collapsed ? 'mx-auto' : ''}`} />
+                    {!collapsed && <span>Diagnostics</span>}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/system"
+                    className={pathname.startsWith('/system') ? 'active' : ''}
+                    onClick={closeDrawer}
+                  >
+                    <Server className={`h-5 w-5 ${collapsed ? 'mx-auto' : ''}`} />
+                    {!collapsed && <span>System</span>}
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    href="/models"
+                    className={pathname.startsWith('/models') ? 'active' : ''}
+                    onClick={closeDrawer}
+                  >
+                    <Database className={`h-5 w-5 ${collapsed ? 'mx-auto' : ''}`} />
+                    {!collapsed && <span>Models</span>}
+                  </Link>
+                </li>
+              </>
+            )}
           </ul>
 
           {/* Divider */}
@@ -605,6 +614,9 @@ export default function ChatLayout({ children }) {
             </form>
           </div>
         </div>
+        <form method="dialog" className="modal-backdrop">
+          <button>close</button>
+        </form>
       </dialog>
     </div>
   );

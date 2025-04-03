@@ -15,7 +15,7 @@ export default function ChatMessage({ message, isUser }) {
       window.speechSynthesis.cancel();
       setIsAudioPlaying(false);
     } else {
-      const utterance = new SpeechSynthesisUtterance(message.content);
+      const utterance = new SpeechSynthesisUtterance(message.content || '');
       utterance.onend = () => setIsAudioPlaying(false);
       window.speechSynthesis.speak(utterance);
       setIsAudioPlaying(true);
@@ -31,9 +31,22 @@ export default function ChatMessage({ message, isUser }) {
 
   // Parse markdown to HTML and sanitize it
   const renderMarkdown = (content) => {
-    const html = marked(content);
-    const sanitizedHtml = DOMPurify.sanitize(html);
-    return { __html: sanitizedHtml };
+    if (!content) return { __html: '' }; // Return empty HTML if content is undefined
+    try {
+      const html = marked(content);
+      const sanitizedHtml = DOMPurify.sanitize(html);
+      return { __html: sanitizedHtml };
+    } catch (error) {
+      console.error('Error rendering markdown:', error);
+      return { __html: '<p>Error rendering content</p>' };
+    }
+  };
+
+  // Ensure message has all required properties
+  const safeMessage = {
+    content: message?.content || '',
+    timestamp: message?.timestamp || new Date().toISOString(),
+    ...message
   };
 
   return (
@@ -50,11 +63,11 @@ export default function ChatMessage({ message, isUser }) {
       <div className="chat-header">
         {isUser ? "You" : "Student AI"}
         <time className="text-xs opacity-50 ml-1">
-          {new Date(message.timestamp).toLocaleTimeString()}
+          {new Date(safeMessage.timestamp).toLocaleTimeString()}
         </time>
       </div>
       <div className={`chat-bubble ${isUser ? 'chat-bubble-accent' : 'chat-bubble-primary'} prose prose-sm max-w-none`}>
-        <div dangerouslySetInnerHTML={renderMarkdown(message.content)} />
+        <div className="markdown" dangerouslySetInnerHTML={renderMarkdown(safeMessage.content)} />
       </div>
       <div className="chat-footer opacity-50">
         {!isUser && (
