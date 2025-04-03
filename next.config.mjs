@@ -27,7 +27,7 @@ const nextConfig = {
           },
           {
             key: 'Access-Control-Allow-Origin',
-            value: '*',
+            value: process.env.NEXT_PUBLIC_CORS_ALLOWED_ORIGIN || 'https://student-ai-cfaj.onrender.com',
           },
           {
             key: 'Access-Control-Allow-Methods',
