@@ -1,60 +1,207 @@
-# Student AI Bot
+# Student AI Learning Assistant 🎓
 
-A Next.js frontend for the Student AI Assistant project - an intelligent learning companion designed to help students learn through natural language conversations.
+![Student AI Banner](https://res.cloudinary.com/dyhvfai21/image/upload/cover-Pic_nem1jv.png)
 
-## Features
+> An AI-powered learning assistant designed to help students learn through natural language conversations, document analysis, and interactive quizzes.
 
-- Natural language conversations with AI
-- Document Q&A capabilities
-- YouTube video content analysis
-- Voice input support
-- Session management
-- User authentication
+[![Next.js](https://img.shields.io/badge/built%20with-Next.js-black?style=flat-square&logo=next.js)](https://nextjs.org/)
+[![DaisyUI](https://img.shields.io/badge/UI-DaisyUI-5cc4b8?style=flat-square)](https://daisyui.com/)
+[![Tailwind CSS](https://img.shields.io/badge/styled%20with-Tailwind-06B6D4?style=flat-square&logo=tailwindcss)](https://tailwindcss.com/)
 
-## Getting Started
+## ✨ Features
+
+- 💬 **Interactive AI Chat** - Have conversations with an AI tutor about your study materials
+- 📝 **Document Q&A** - Upload documents and ask specific questions about them
+- 🎬 **YouTube Content Analysis** - Process videos and learn from their content
+- 🎯 **Interactive Quizzes** - Test your knowledge with auto-generated quizzes
+- 🔊 **Voice Input** - Use speech recognition for hands-free interaction
+- 📊 **Progress Tracking** - Monitor your learning progress
+- 🌙 **Dark/Light Mode** - Choose your preferred theme
+
+## 🚀 Live Demo
+
+[🔗 Student AI](https://student-ai-next.vercel.app)
+> [!IMPORTANT]
+> The demo may not have all features fully functional due to "HARDWARE" limitations.
+
+## 📷 Screenshots & Demo
+
+<details>
+<summary>View Screenshots</summary>
+
+### Home Page
+![Home Page](https://res.cloudinary.com/dyhvfai21/image/upload/Screenshot_2025-04-04_020520_wwhqsf.png)
+
+### Sign In Page
+![Sign In Page](https://res.cloudinary.com/dyhvfai21/image/upload/Screenshot_2025-04-04_020736_zjis7x.png)
+
+### Dashboard
+![Dashboard](https://res.cloudinary.com/dyhvfai21/image/upload/Screenshot_2025-04-04_020841_myam25.png)
+
+
+### Document Upload
+![Document Upload](https://res.cloudinary.com/dyhvfai21/image/upload/Screenshot_2025-04-04_021305_b2yieh.png)
+
+### Quiz
+![Quiz](https://res.cloudinary.com/dyhvfai21/image/upload/Screenshot_2025-04-04_021400_eyeqpn.png)
+![Quiz Result](https://res.cloudinary.com/dyhvfai21/image/upload/Screenshot_2025-04-04_021940_h0rda0.png)
+
+### Chat Interface
+![Chat Interface](https://res.cloudinary.com/dyhvfai21/image/upload/Screenshot_2025-04-04_022049_h8ldvz.png)
+
+</details>
+
+## 🛠️ Installation
 
 ### Prerequisites
 
 - Node.js 18+
-- Backend API running (see backend setup instructions)
+- Backend API running ([Follow backend setup instructions here](https://github.com/mehedi37/student_ai_backend))
 
-### Environment Setup
+### Setup
 
-Create a `.env` file in the root directory with:
+1. **Clone the repository**
 
 ```bash
-NEXT_PUBLIC_API_URL=<your_backend_api_url>
+git clone https://github.com/mehedi37/student_ai_next.git
+cd student_ai_next
 ```
 
-First, run the development server:
+2. **Install dependencies**
+
+```bash
+npm install
+# or
+yarn
+```
+
+3. **Configure environment variables**
+
+Create a .env file in the root directory:
+
+```env
+NEXT_PUBLIC_API_URL=http://localhost:8000/api
+```
+
+4. **Run development server**
 
 ```bash
 npm run dev
 # or
 yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+5. **Open in browser**
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+Navigate to [http://localhost:3000](http://localhost:3000)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🏗️ Project Structure
 
-## Learn More
+```
+student_ai_next/
+├── app/               # Next.js app directory (app router)
+│   ├── api/           # API routes
+│   ├── auth/          # Authentication pages
+│   ├── chat/          # Chat interface pages
+│   ├── components/    # App-specific components
+│   ├── contexts/      # React contexts
+│   ├── dashboard/     # Dashboard pages
+│   ├── quizzes/       # Quiz functionality
+│   ├── upload/        # File upload functionality
+│   ├── globals.css    # Global styles
+│   ├── layout.js      # Root layout
+│   └── page.js        # Home page
+├── components/        # Shared components
+│   ├── ChatInterface.js
+│   ├── ChatMessage.js
+│   └── ...
+├── public/           # Static assets
+├── utils/            # Utility functions
+│   └── api.js        # API client
+└── README.md
+```
 
-To learn more about Next.js, take a look at the following resources:
+## 💡 Core Functionality
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+### Authentication Flow
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Student AI uses JWT-based authentication. Users can sign up, sign in, and manage their sessions.
 
-## Deploy on Vercel
+### Chat System
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+The chat interface allows you to:
+- Start new chat sessions
+- Continue previous conversations
+- Upload and analyze documents
+- Use voice input for queries
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+### Quiz System
+
+Student AI features an advanced quiz system:
+- Automatically generated quizzes based on your content
+- Interactive UI with real-time feedback
+- Explanations for correct answers
+- Score tracking and review
+
+### Document Processing
+
+Upload various document types:
+- PDFs
+- Word documents
+- Plain text files
+- YouTube videos and playlists
+
+## 🧰 Technologies Used
+
+- **Frontend**
+  - [Next.js 15](https://nextjs.org/) - React framework
+  - [React 19](https://reactjs.org/) - UI library
+  - [DaisyUI 5](https://daisyui.com/) - Tailwind CSS component library
+  - [Tailwind CSS 4](https://tailwindcss.com/) - Utility-first CSS framework
+  - [Lucide React](https://lucide.dev/) - Icon library
+
+- **API Integration**
+  - Custom API client using Fetch API
+  - JWT authentication
+
+- **Other Libraries**
+  - [date-fns](https://date-fns.org/) - Date manipulation
+  - [react-markdown](https://github.com/remarkjs/react-markdown) - Markdown rendering
+  - [wavesurfer.js](https://wavesurfer-js.org/) - Audio visualization
+
+## 🛣️ Roadmap
+
+- [ ] Mobile app version
+- [ ] Group study sessions
+- [ ] Advanced analytics dashboard
+- [ ] Custom AI model integration
+- [ ] Offline mode support
+- [ ] Fix some minor bugs and improve performance
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the project
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## 📄 License
+
+This project is licensed under the MIT License - see the LICENSE file for details.
+
+## 👨‍💻 Author
+
+**হাট্টিমাটিম_Team** - [GitHub Profile](https://github.com/mehedi37)
+
+---
+
+<div align="center">
+  Made with ❤️ by হাট্টিমাটিম_Team
+  <br>
+  © 2025 Student AI - All Rights Reserved
+</div>
+
+Similar code found with 1 license type
