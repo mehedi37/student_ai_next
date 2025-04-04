@@ -24,6 +24,8 @@ export default function QuizDetail() {
   const [results, setResults] = useState(null);
   const [timeSpent, setTimeSpent] = useState(0);
   const [timeRemaining, setTimeRemaining] = useState(null);
+  const [minutesRemaining, setMinutesRemaining] = useState(0);
+  const [secondsRemaining, setSecondsRemaining] = useState(0);
   const [startTime, setStartTime] = useState(null);
   const timerRef = useRef(null);
   const isMounted = useRef(true);
@@ -52,17 +54,23 @@ export default function QuizDetail() {
         clearInterval(timerRef.current);
       }
 
-      const quizDuration = quiz.time_limit ? quiz.time_limit * 60 : quiz.questions.length * 30;
+      const quizDuration = quiz.time_limit ? quiz.time_limit * 60 : quiz.questions.length * 20;
       const elapsedTime = Math.floor((Date.now() - startTime) / 1000);
       const initialTimeRemaining = Math.max(0, quizDuration - elapsedTime);
 
       setTimeRemaining(initialTimeRemaining);
+      setMinutesRemaining(Math.floor(initialTimeRemaining / 60));
+      setSecondsRemaining(initialTimeRemaining % 60);
 
       timerRef.current = setInterval(() => {
         if (isMounted.current) {
           setTimeSpent(prev => prev + 1);
           setTimeRemaining(prev => {
             const newTimeRemaining = prev - 1;
+
+            // Update minutes and seconds for countdown component
+            setMinutesRemaining(Math.floor(newTimeRemaining / 60));
+            setSecondsRemaining(newTimeRemaining % 60);
 
             if (newTimeRemaining <= 0 && !autoSubmitting.current) {
               autoSubmitting.current = true;
@@ -277,20 +285,27 @@ export default function QuizDetail() {
         </button>
       </div>
 
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-primary">{quiz.topic_name}</h1>
-        {!submitted && (
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-2">
-              <Clock className="w-5 h-5" />
-              <span className="font-mono">Time spent: {formatTime(timeSpent)}</span>
-            </div>
-            <div className={`flex items-center gap-2 ${timeRemaining < 60 ? 'text-error' : timeRemaining < 120 ? 'text-warning' : ''}`}>
-              <Clock className="w-5 h-5" />
-              <span className="font-mono font-bold">Time remaining: {formatTime(timeRemaining)}</span>
+      {/* Sticky timer header when not submitted */}
+      {!submitted && (
+        <div className="sticky top-0 z-10 py-2 bg-base-100 border-b border-base-300 shadow-sm">
+          <div className="container mx-auto flex justify-between items-center">
+            <h2 className="text-xl font-semibold">{quiz.topic_name}</h2>
+            <div className="flex items-center gap-6">
+              <div className={`flex items-center gap-2 ${timeRemaining < 60 ? 'text-error' : timeRemaining < 120 ? 'text-warning' : ''}`}>
+                <Clock className="w-5 h-5" />
+                <span className="font-mono">Remaining: </span>
+                <span className="countdown font-mono text-xl">
+                  <span style={{"--value": minutesRemaining}}></span>:
+                  <span style={{"--value": secondsRemaining < 10 ? `0${secondsRemaining}` : secondsRemaining}}></span>
+                </span>
+              </div>
             </div>
           </div>
-        )}
+        </div>
+      )}
+
+      <div className="flex justify-between items-center mb-8 mt-4">
+        <h1 className="text-3xl font-bold text-primary">{quiz.topic_name}</h1>
       </div>
 
       {submitted && results ? (
