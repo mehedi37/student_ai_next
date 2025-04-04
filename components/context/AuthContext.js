@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useState, useEffect } from 'react';
 import { api } from '@/utils/api';
+import Cookies from 'js-cookie';
 
 const AuthContext = createContext({});
 
@@ -12,9 +13,17 @@ export function AuthProvider({ children }) {
 
   // Load user on initial load
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    const token = Cookies.get('token') || localStorage.getItem('token');
 
     if (token) {
+      // If token is in localStorage but not in cookies, migrate it
+      if (!Cookies.get('token') && localStorage.getItem('token')) {
+        Cookies.set('token', token, {
+          expires: 7, // 7 days
+          sameSite: 'Lax',
+          secure: process.env.NODE_ENV === 'production'
+        });
+      }
       fetchUserProfile();
     } else {
       setIsLoading(false);
@@ -29,6 +38,7 @@ export function AuthProvider({ children }) {
     } catch (err) {
       console.error("Failed to fetch user profile:", err);
       localStorage.removeItem('token');
+      Cookies.remove('token');
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -42,7 +52,15 @@ export function AuthProvider({ children }) {
 
       // If registration is successful, immediately log in
       const loginResponse = await api.auth.login({ email, password });
-      localStorage.setItem('token', loginResponse.access_token);
+      const token = loginResponse.access_token;
+
+      // Store token in both localStorage and cookies
+      localStorage.setItem('token', token);
+      Cookies.set('token', token, {
+        expires: 7, // 7 days
+        sameSite: 'Lax',
+        secure: process.env.NODE_ENV === 'production'
+      });
 
       await fetchUserProfile();
       return response;
@@ -56,7 +74,16 @@ export function AuthProvider({ children }) {
   const login = async (email, password) => {
     try {
       const response = await api.auth.login({ email, password });
-      localStorage.setItem('token', response.access_token);
+      const token = response.access_token;
+
+      // Store token in both localStorage and cookies
+      localStorage.setItem('token', token);
+      Cookies.set('token', token, {
+        expires: 7, // 7 days
+        sameSite: 'Lax',
+        secure: process.env.NODE_ENV === 'production'
+      });
+
       await fetchUserProfile();
       return response;
     } catch (err) {
@@ -73,6 +100,7 @@ export function AuthProvider({ children }) {
       console.error("Logout API error:", err);
     } finally {
       localStorage.removeItem('token');
+      Cookies.remove('token');
       setUser(null);
     }
   };
