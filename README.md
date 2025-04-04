@@ -20,9 +20,10 @@
 
 ## 🚀 Live Demo
 
-[🔗 Student AI](https://student-ai-next.vercel.app)
+[🔗 Student AI Live website](https://student-ai-next.vercel.app)
 > [!IMPORTANT]
 > The demo may not have all features fully functional due to "HARDWARE" limitations. The front end was deployed to Vercel, and the back end was deployed to Render.
+> File upload doesn't work on a live server as it needs more computational power than a generous free tire can offer! So, try to run locally.
 
 ## 📷 Screenshots & Demo
 
