@@ -22,7 +22,7 @@
 
 [🔗 Student AI](https://student-ai-next.vercel.app)
 > [!IMPORTANT]
-> The demo may not have all features fully functional due to "HARDWARE" limitations.
+> The demo may not have all features fully functional due to "HARDWARE" limitations. The front end was deployed to Vercel, and the back end was deployed to Render.
 
 ## 📷 Screenshots & Demo
 
@@ -203,5 +203,3 @@ This project is licensed under the MIT License - see the LICENSE file for detail
   <br>
   © 2025 Student AI - All Rights Reserved
 </div>
-
-Similar code found with 1 license type
